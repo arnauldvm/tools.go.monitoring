@@ -1,4 +1,4 @@
-package main
+package vmstat // import "sic.smals.be/tools/monitoring/vmstat"
 
 import (
 	"bufio"
@@ -38,16 +38,4 @@ func Vmstat(period time.Duration, duration time.Duration, cout chan [10]uint) {
 		}()
 	}
 	close(cout)
-}
-
-func main() {
-	period, err := time.ParseDuration("500ms")
-	check(err)
-	duration, err := time.ParseDuration("5s")
-	check(err)
-	cout := make(chan [10]uint)
-	go Vmstat(period, duration, cout)
-	for dat := range cout {
-		fmt.Println(dat)
-	}
 }
