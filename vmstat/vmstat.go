@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"path"
 	"time"
 )
 
@@ -14,8 +15,17 @@ func check(e error) {
 }
 
 const (
-	procStat = "/proc/stat"
+	defaultProcStat = "/proc/stat"
 )
+
+var procStat string = defaultProcStat
+
+func init() {
+	fsRoot := os.Getenv("FS_ROOT")
+	if fsRoot != "" {
+		procStat = path.Join(fsRoot, defaultProcStat)
+	}
+}
 
 // Vmstat returns an array of 10 uint every period until duration
 func Vmstat(period time.Duration, duration time.Duration, cout chan [10]uint) {
