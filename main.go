@@ -18,7 +18,7 @@ func main() {
 	check(err)
 	duration, err := time.ParseDuration("5s")
 	check(err)
-	cout := make(chan [10]uint)
+	cout := make(chan vmstat.VmstatLine)
 	go vmstat.Poll(period, duration, cout)
 	for dat := range cout {
 		fmt.Println(dat)

@@ -27,8 +27,27 @@ func init() {
 	}
 }
 
-// Poll returns an array of 10 uint every period until duration
-func Poll(period time.Duration, duration time.Duration, cout chan [10]uint) {
+type Cpu []uint
+
+type Interrupts uint
+
+type ContextSwitches uint
+
+type Procs struct {
+	running uint
+	blocked uint
+	delta   int
+}
+
+type VmstatLine struct {
+	cpu   Cpu
+	intr  Interrupts
+	ctxt  ContextSwitches
+	procs Procs
+}
+
+// Poll sends a VmstatLine in the channel every period until duration
+func Poll(period time.Duration, duration time.Duration, cout chan VmstatLine) {
 	startTime := time.Now()
 	for i := 0; time.Since(startTime) <= duration; i++ {
 		if i > 0 {
