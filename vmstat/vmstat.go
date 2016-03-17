@@ -176,7 +176,7 @@ func (record VmstatRecord) String() string {
 	return fmt.Sprintf("%s %s %s %s", record.procs, record.intr, record.ctxt, record.cpu)
 }
 
-func parseVmstat() {
+func parseVmstat() VmstatRecord {
 	inFile, err := os.Open(procStat)
 	check(err)
 	defer inFile.Close()
@@ -206,8 +206,8 @@ func parseVmstat() {
 			}
 		}
 	}
-	fmt.Println(record)
 	check(scanner.Err())
+	return *record
 }
 
 /* Polling */
@@ -225,7 +225,7 @@ func Poll(period time.Duration, duration time.Duration, cout chan VmstatRecord) 
 		if i > 0 {
 			time.Sleep(period)
 		}
-		parseVmstat()
+		fmt.Println(parseVmstat())
 	}
 	close(cout)
 }
