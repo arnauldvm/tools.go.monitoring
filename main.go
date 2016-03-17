@@ -13,6 +13,11 @@ func check(e error) {
 	}
 }
 
+func printLine(wt io.WriterTo) {
+	wt.WriteTo(os.Stdout)
+	os.Stdout.Write([]byte{'\n'})
+}
+
 func main() {
 	period, err := time.ParseDuration("500ms")
 	check(err)
@@ -21,8 +26,6 @@ func main() {
 	cout := make(chan vmstat.VmstatRecord)
 	go vmstat.Poll(period, duration, cout)
 	for dat := range cout {
-		//fmt.Println(dat)
-		dat.WriteTo(os.Stdout)
-		os.Stdout.Write([]byte{'\n'})
+		printLine(dat)
 	}
 }
