@@ -3,18 +3,13 @@ package vmstat // import "sic.smals.be/tools/monitoring/vmstat"
 import (
 	"bufio"
 	"fmt"
+	"log"
 	"os"
 	"path"
 	"strconv"
 	"strings"
 	"time"
 )
-
-func check(e error) {
-	if e != nil {
-		panic(e) // TODO: really?
-	}
-}
 
 const (
 	defaultProcStat = "/proc/stat"
@@ -43,7 +38,9 @@ func parseFirstField(line, prefix string) (field uint, err error) {
 		return
 	}
 	uint64field, err := strconv.ParseUint(fields[1], 10, 0)
-	check(err)
+	if err != nil {
+		return
+	}
 	field = uint(uint64field)
 	return
 }
@@ -82,7 +79,9 @@ func ParseCpu(line string) (cpu recordPart, err error) {
 			continue
 		}
 		uint64field, err := strconv.ParseUint(f, 10, 0)
-		check(err)
+		if err != nil {
+			return nil, err
+		}
 		newcpu[i-1] = uint(uint64field)
 	}
 	return Cpu(newcpu), nil
@@ -149,7 +148,9 @@ func (procs Procs) String() string { // implements recordPart >> fmt.Stringer
 func (procs *Procs) parse(line string) error {
 	fields := strings.Fields(line)
 	uint64field, err := strconv.ParseUint(fields[1], 10, 0)
-	check(err)
+	if err != nil {
+		return err
+	}
 	switch fields[0] {
 	case forksPrefix:
 		procs.forks = int(uint64field)
@@ -176,20 +177,25 @@ func (record VmstatRecord) String() string {
 	return fmt.Sprintf("%s %s %s %s", record.procs, record.intr, record.ctxt, record.cpu)
 }
 
-func parseVmstat() VmstatRecord {
+func parseVmstat() (record VmstatRecord, err error) {
+	record = *new(VmstatRecord)
 	inFile, err := os.Open(procStat)
-	check(err)
+	if err != nil {
+		return
+	}
 	defer inFile.Close()
 	scanner := bufio.NewScanner(inFile)
-	record := new(VmstatRecord)
 	for j := 0; scanner.Scan(); j++ {
 		line := scanner.Text()
 		linePrefix := strings.SplitN(line, " ", 2)[0]
 		parserFn, ok := parsers[linePrefix]
 		if ok {
-			recordPart, err := parserFn(line)
-			check(err)
-			switch val := recordPart.(type) {
+			var part recordPart
+			part, err = parserFn(line)
+			if err != nil {
+				return
+			}
+			switch val := part.(type) {
 			case Cpu:
 				record.cpu = val
 			case Interrupts:
@@ -200,14 +206,16 @@ func parseVmstat() VmstatRecord {
 		} else {
 			if stringInSlice(linePrefix, procPrefixes) {
 				err = record.procs.parse(line)
-				check(err)
+				if err != nil {
+					return
+				}
 			} else {
 				//fmt.Printf("Unsupported: %s\n", line)
 			}
 		}
 	}
-	check(scanner.Err())
-	return *record
+	err = scanner.Err()
+	return
 }
 
 /* Polling */
@@ -225,7 +233,12 @@ func Poll(period time.Duration, duration time.Duration, cout chan VmstatRecord) 
 		if i > 0 {
 			time.Sleep(period)
 		}
-		fmt.Println(parseVmstat())
+		record, err := parseVmstat()
+		if err != nil {
+			log.Println(err)
+			continue
+		}
+		cout <- record
 	}
 	close(cout)
 }
