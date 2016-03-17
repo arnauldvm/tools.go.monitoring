@@ -37,6 +37,8 @@ func checkPrefix(expected, actual string) error {
 	return errors.New("Not a '" + expected + "' line (found '" + actual + "')")
 }
 
+/* CPU */
+
 const cpuPrefix = "cpu"
 
 type Cpu []uint
@@ -59,6 +61,8 @@ func ParseCpu(line string) (cpu Cpu, err error) {
 	return newcpu, nil
 }
 
+/* Interrupts */
+
 const intrPrefix = "intr"
 
 type Interrupts uint
@@ -75,7 +79,11 @@ func ParseInterrupts(line string) (intr Interrupts, err error) {
 	return
 }
 
+/* Context switches */
+
 type ContextSwitches uint
+
+/* Process/Threads */
 
 type Procs struct {
 	running uint
@@ -89,6 +97,8 @@ type VmstatRecord struct {
 	ctxt  ContextSwitches
 	procs Procs
 }
+
+/* Polling */
 
 // Poll sends a VmstatLine in the channel every period until duration
 func Poll(period time.Duration, duration time.Duration, cout chan VmstatRecord) {
