@@ -48,6 +48,15 @@ func parseFirstField(line, prefix string) (field uint, err error) {
 	return
 }
 
+func stringInSlice(str string, slice []string) bool {
+	for _, val := range slice {
+		if str == val {
+			return true
+		}
+	}
+	return false
+}
+
 type recordPart fmt.Stringer
 type parserFunction func(string) (recordPart, error)
 
@@ -119,14 +128,39 @@ func ParseContextSwitches(line string) (ctxt recordPart, err error) {
 
 /* Process/Threads */
 
+const (
+	forksPrefix       = "processes"
+	runningProcPrefix = "procs_running"
+	blockedProcPrefix = "procs_blocked"
+)
+
+var procPrefixes = []string{forksPrefix, runningProcPrefix, blockedProcPrefix}
+
 type Procs struct {
+	forks   int
 	running uint
 	blocked uint
-	delta   int
 }
 
 func (procs Procs) String() string { // implements recordPart >> fmt.Stringer
-	return fmt.Sprintf("%d %d %d", procs.running, procs.blocked, procs.delta)
+	return fmt.Sprintf("%d %d %d", procs.forks, procs.running, procs.blocked)
+}
+
+func (procs *Procs) parse(line string) error {
+	fields := strings.Fields(line)
+	uint64field, err := strconv.ParseUint(fields[1], 10, 0)
+	check(err)
+	switch fields[0] {
+	case forksPrefix:
+		procs.forks = int(uint64field)
+	case runningProcPrefix:
+		procs.running = uint(uint64field)
+	case blockedProcPrefix:
+		procs.blocked = uint(uint64field)
+	default:
+		return fmt.Errorf("Not a '%s' line (found '%s')", strings.Join(procPrefixes, "' or '"), fields[0])
+	}
+	return nil
 }
 
 /* Vmstat record */
@@ -158,6 +192,7 @@ func Poll(period time.Duration, duration time.Duration, cout chan VmstatRecord) 
 			check(err)
 			defer inFile.Close()
 			scanner := bufio.NewScanner(inFile)
+			procs := new(Procs)
 			for j := 0; scanner.Scan(); j++ {
 				line := scanner.Text()
 				linePrefix := strings.SplitN(line, " ", 2)[0]
@@ -167,9 +202,15 @@ func Poll(period time.Duration, duration time.Duration, cout chan VmstatRecord) 
 					check(err)
 					fmt.Println(recordPart)
 				} else {
-					//fmt.Printf("Unsupported: %s\n", line)
+					if stringInSlice(linePrefix, procPrefixes) {
+						err = procs.parse(line)
+						check(err)
+					} else {
+						//fmt.Printf("Unsupported: %s\n", line)
+					}
 				}
 			}
+			fmt.Println(procs)
 			check(scanner.Err())
 		}()
 	}
