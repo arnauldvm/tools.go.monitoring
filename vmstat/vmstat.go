@@ -37,6 +37,18 @@ func checkPrefix(expected, actual string) error {
 	return errors.New("Not a '" + expected + "' line (found '" + actual + "')")
 }
 
+func parseFirstField(line, prefix string) (field uint, err error) {
+	fields := strings.Fields(line)
+	err = checkPrefix(prefix, fields[0])
+	if err != nil {
+		return
+	}
+	uint64field, err := strconv.ParseUint(fields[1], 10, 0)
+	check(err)
+	field = uint(uint64field)
+	return
+}
+
 /* CPU */
 
 const cpuPrefix = "cpu"
@@ -68,14 +80,11 @@ const intrPrefix = "intr"
 type Interrupts uint
 
 func ParseInterrupts(line string) (intr Interrupts, err error) {
-	fields := strings.Fields(line)
-	err = checkPrefix(intrPrefix, fields[0])
+	field, err := parseFirstField(line, intrPrefix)
 	if err != nil {
 		return
 	}
-	uint64field, err := strconv.ParseUint(fields[1], 10, 0)
-	check(err)
-	intr = Interrupts(uint(uint64field))
+	intr = Interrupts(field)
 	return
 }
 
