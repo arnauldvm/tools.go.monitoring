@@ -18,6 +18,23 @@ const (
 	separator       = " "
 )
 
+/* Header is a list of field names. By convention names ending with "/a"
+   are accumulators (ever growing), while names ending with "/i" are instant values. */
+
+type Header []string
+
+func (h Header) String() string { // implements fmt.Stringer
+	buf := new(bytes.Buffer)
+	h.WriteTo(buf)
+	return buf.String()
+}
+func (h Header) WriteTo(w io.Writer) (n int64, err error) { // implements io.WriterTo
+	return writeTo(w, strings.Join(h, separator), 0)
+}
+func (h Header) append(k Header) Header {
+	return Header(append(h, k...))
+}
+
 var procStat string = defaultProcStat
 
 func init() {
@@ -90,6 +107,24 @@ const cpuPrefix = "cpu"
 
 type Cpu []uint
 
+/* << The amount of time, measured in units of USER_HZ
+   (1/100ths of a second on most architectures, use
+   sysconf(_SC_CLK_TCK) to obtain the right value), that
+   the system spent in various states >> */
+
+var cpuHeader = Header([]string{
+	"cpu:user/a",
+	"cpu:nice/a",
+	"cpu:system/a",
+	"cpu:idle/a",
+	"cpu:iowait/a",
+	"cpu:irq/a",
+	"cpu:softirq/a",
+	"cpu:steal/a",
+	"cpu:guest/a",
+	"cpu:guest_nice/a",
+})
+
 // implement recordPart
 
 func (cpu Cpu) String() string { // implements fmt.Stringer
@@ -139,6 +174,8 @@ const intrPrefix = "intr"
 
 type Interrupts uint
 
+var intrHeader = Header([]string{"intr:total/a"})
+
 // implement recordPart
 
 func (intr Interrupts) String() string { // implements fmt.Stringer
@@ -162,6 +199,8 @@ func ParseInterrupts(line string) (intr recordPart, err error) {
 const ctxtPrefix = "ctxt"
 
 type ContextSwitches uint
+
+var ctxtHeader = Header([]string{"ctxt:total/a"})
 
 // implement recordPart
 
@@ -197,6 +236,8 @@ type Procs struct {
 	blocked uint
 }
 
+var procsHeader = Header([]string{"proc:forks/a", "proc:running/i", "proc:blocked/i"})
+
 // implement recordPart
 
 func (procs Procs) String() string { // implements fmt.Stringer
@@ -228,6 +269,8 @@ func (procs *Procs) parse(line string) error {
 }
 
 /* Vmstat record */
+
+var VmstatHeader = procsHeader.append(intrHeader).append(ctxtHeader).append(cpuHeader)
 
 type VmstatRecord struct {
 	procs Procs

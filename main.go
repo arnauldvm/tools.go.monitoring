@@ -1,6 +1,7 @@
 package main
 
 import (
+	"io"
 	"os"
 	"time"
 
@@ -25,6 +26,7 @@ func main() {
 	check(err)
 	cout := make(chan vmstat.VmstatRecord)
 	go vmstat.Poll(period, duration, cout)
+	printLine(vmstat.VmstatHeader)
 	for dat := range cout {
 		printLine(dat)
 	}
