@@ -48,11 +48,16 @@ func parseFirstField(line, prefix string) (field uint, err error) {
 	return
 }
 
+type recordPart fmt.Stringer
 /* CPU */
 
 const cpuPrefix = "cpu"
 
 type Cpu []uint
+
+func (cpu Cpu) String() string { // implements recordPart >> fmt.Stringer
+	return fmt.Sprint([]uint(cpu))
+}
 
 func ParseCpu(line string) (cpu Cpu, err error) {
 	fields := strings.Fields(line)
@@ -78,6 +83,10 @@ const intrPrefix = "intr"
 
 type Interrupts uint
 
+func (intr Interrupts) String() string { // implements recordPart >> fmt.Stringer
+	return fmt.Sprint(uint(intr))
+}
+
 func ParseInterrupts(line string) (intr Interrupts, err error) {
 	field, err := parseFirstField(line, intrPrefix)
 	if err != nil {
@@ -91,12 +100,20 @@ func ParseInterrupts(line string) (intr Interrupts, err error) {
 
 type ContextSwitches uint
 
+func (ctxt ContextSwitches) String() string { // implements recordPart >> fmt.Stringer
+	return fmt.Sprint(uint(ctxt))
+}
+
 /* Process/Threads */
 
 type Procs struct {
 	running uint
 	blocked uint
 	delta   int
+}
+
+func (procs Procs) String() string { // implements recordPart >> fmt.Stringer
+	return fmt.Sprintf("%d %d %d", procs.running, procs.blocked, procs.delta)
 }
 
 type VmstatRecord struct {
