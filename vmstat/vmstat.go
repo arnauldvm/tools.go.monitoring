@@ -172,6 +172,10 @@ type VmstatRecord struct {
 	procs Procs
 }
 
+func (record VmstatRecord) String() string {
+	return fmt.Sprintf("%s %s %s %s", record.procs, record.intr, record.ctxt, record.cpu)
+}
+
 func parseVmstat() {
 	inFile, err := os.Open(procStat)
 	check(err)
@@ -185,7 +189,6 @@ func parseVmstat() {
 		if ok {
 			recordPart, err := parserFn(line)
 			check(err)
-			fmt.Println(recordPart)
 			switch val := recordPart.(type) {
 			case Cpu:
 				record.cpu = val
@@ -203,7 +206,7 @@ func parseVmstat() {
 			}
 		}
 	}
-	fmt.Println(record.procs)
+	fmt.Println(record)
 	check(scanner.Err())
 }
 
