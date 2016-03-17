@@ -2,6 +2,7 @@ package vmstat // import "sic.smals.be/tools/monitoring/vmstat"
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"log"
 	"os"
@@ -64,7 +65,14 @@ const cpuPrefix = "cpu"
 type Cpu []uint
 
 func (cpu Cpu) String() string { // implements recordPart >> fmt.Stringer
-	return fmt.Sprint([]uint(cpu))
+	buf := new(bytes.Buffer)
+	for i, val := range cpu {
+		if i > 0 {
+			buf.WriteString(" ")
+		}
+		buf.WriteString(fmt.Sprint(val))
+	}
+	return buf.String()
 }
 
 func ParseCpu(line string) (cpu recordPart, err error) {
