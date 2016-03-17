@@ -100,10 +100,21 @@ func ParseInterrupts(line string) (intr recordPart, err error) {
 
 /* Context switches */
 
+const ctxtPrefix = "ctxt"
+
 type ContextSwitches uint
 
 func (ctxt ContextSwitches) String() string { // implements recordPart >> fmt.Stringer
 	return fmt.Sprint(uint(ctxt))
+}
+
+func ParseContextSwitches(line string) (ctxt recordPart, err error) {
+	field, err := parseFirstField(line, ctxtPrefix)
+	if err != nil {
+		return
+	}
+	ctxt = ContextSwitches(field)
+	return
 }
 
 /* Process/Threads */
@@ -132,6 +143,7 @@ type VmstatRecord struct {
 var parsers = map[string]parserFunction{
 	cpuPrefix:  ParseCpu,
 	intrPrefix: ParseInterrupts,
+	ctxtPrefix: ParseContextSwitches,
 }
 
 // Poll sends a VmstatLine in the channel every period until duration
