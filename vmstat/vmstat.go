@@ -177,7 +177,7 @@ func parseVmstat() {
 	check(err)
 	defer inFile.Close()
 	scanner := bufio.NewScanner(inFile)
-	procs := new(Procs)
+	record := new(VmstatRecord)
 	for j := 0; scanner.Scan(); j++ {
 		line := scanner.Text()
 		linePrefix := strings.SplitN(line, " ", 2)[0]
@@ -186,16 +186,24 @@ func parseVmstat() {
 			recordPart, err := parserFn(line)
 			check(err)
 			fmt.Println(recordPart)
+			switch val := recordPart.(type) {
+			case Cpu:
+				record.cpu = val
+			case Interrupts:
+				record.intr = val
+			case ContextSwitches:
+				record.ctxt = val
+			}
 		} else {
 			if stringInSlice(linePrefix, procPrefixes) {
-				err = procs.parse(line)
+				err = record.procs.parse(line)
 				check(err)
 			} else {
 				//fmt.Printf("Unsupported: %s\n", line)
 			}
 		}
 	}
-	fmt.Println(procs)
+	fmt.Println(record.procs)
 	check(scanner.Err())
 }
 
