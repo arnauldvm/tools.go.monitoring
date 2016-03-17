@@ -116,6 +116,8 @@ func (procs Procs) String() string { // implements recordPart >> fmt.Stringer
 	return fmt.Sprintf("%d %d %d", procs.running, procs.blocked, procs.delta)
 }
 
+/* Vmstat record */
+
 type VmstatRecord struct {
 	cpu   Cpu
 	intr  Interrupts
