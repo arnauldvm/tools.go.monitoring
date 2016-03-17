@@ -172,6 +172,33 @@ type VmstatRecord struct {
 	procs Procs
 }
 
+func parseVmstat() {
+	inFile, err := os.Open(procStat)
+	check(err)
+	defer inFile.Close()
+	scanner := bufio.NewScanner(inFile)
+	procs := new(Procs)
+	for j := 0; scanner.Scan(); j++ {
+		line := scanner.Text()
+		linePrefix := strings.SplitN(line, " ", 2)[0]
+		parserFn, ok := parsers[linePrefix]
+		if ok {
+			recordPart, err := parserFn(line)
+			check(err)
+			fmt.Println(recordPart)
+		} else {
+			if stringInSlice(linePrefix, procPrefixes) {
+				err = procs.parse(line)
+				check(err)
+			} else {
+				//fmt.Printf("Unsupported: %s\n", line)
+			}
+		}
+	}
+	fmt.Println(procs)
+	check(scanner.Err())
+}
+
 /* Polling */
 
 var parsers = map[string]parserFunction{
@@ -187,32 +214,7 @@ func Poll(period time.Duration, duration time.Duration, cout chan VmstatRecord) 
 		if i > 0 {
 			time.Sleep(period)
 		}
-		func() {
-			inFile, err := os.Open(procStat)
-			check(err)
-			defer inFile.Close()
-			scanner := bufio.NewScanner(inFile)
-			procs := new(Procs)
-			for j := 0; scanner.Scan(); j++ {
-				line := scanner.Text()
-				linePrefix := strings.SplitN(line, " ", 2)[0]
-				parserFn, ok := parsers[linePrefix]
-				if ok {
-					recordPart, err := parserFn(line)
-					check(err)
-					fmt.Println(recordPart)
-				} else {
-					if stringInSlice(linePrefix, procPrefixes) {
-						err = procs.parse(line)
-						check(err)
-					} else {
-						//fmt.Printf("Unsupported: %s\n", line)
-					}
-				}
-			}
-			fmt.Println(procs)
-			check(scanner.Err())
-		}()
+		parseVmstat()
 	}
 	close(cout)
 }
