@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	"os"
 	"time"
 
 	"sic.smals.be/tools/monitoring/vmstat"
@@ -21,6 +21,8 @@ func main() {
 	cout := make(chan vmstat.VmstatRecord)
 	go vmstat.Poll(period, duration, cout)
 	for dat := range cout {
-		fmt.Println(dat)
+		//fmt.Println(dat)
+		dat.WriteTo(os.Stdout)
+		os.Stdout.Write([]byte{'\n'})
 	}
 }

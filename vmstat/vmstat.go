@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"path"
@@ -14,6 +15,7 @@ import (
 
 const (
 	defaultProcStat = "/proc/stat"
+	separator       = " "
 )
 
 var procStat string = defaultProcStat
@@ -55,8 +57,32 @@ func stringInSlice(str string, slice []string) bool {
 	return false
 }
 
-type recordPart fmt.Stringer
+type recordPart interface {
+	fmt.Stringer
+	io.WriterTo
+}
 type parserFunction func(string) (recordPart, error)
+
+func writeTo(w io.Writer, v interface{}, p int64) (int64, error) {
+	m, err := w.Write([]byte(fmt.Sprint(v)))
+	return p + int64(m), err
+}
+func writeManyTo(w io.Writer, p int64, vals ...interface{}) (n int64, err error) {
+	n = p
+	for i, val := range vals {
+		if i > 0 {
+			n, err = writeTo(w, separator, n)
+			if err != nil {
+				return
+			}
+		}
+		n, err = writeTo(w, val, n)
+		if err != nil {
+			return
+		}
+	}
+	return
+}
 
 /* CPU */
 
@@ -64,15 +90,27 @@ const cpuPrefix = "cpu"
 
 type Cpu []uint
 
-func (cpu Cpu) String() string { // implements recordPart >> fmt.Stringer
+// implement recordPart
+
+func (cpu Cpu) String() string { // implements fmt.Stringer
 	buf := new(bytes.Buffer)
+	cpu.WriteTo(buf)
+	return buf.String()
+}
+func (cpu Cpu) WriteTo(w io.Writer) (n int64, err error) { // implements io.WriterTo
 	for i, val := range cpu {
 		if i > 0 {
-			buf.WriteString(" ")
+			n, err = writeTo(w, separator, n)
+			if err != nil {
+				return
+			}
 		}
-		buf.WriteString(fmt.Sprint(val))
+		n, err = writeTo(w, val, n)
+		if err != nil {
+			return
+		}
 	}
-	return buf.String()
+	return
 }
 
 func ParseCpu(line string) (cpu recordPart, err error) {
@@ -101,8 +139,13 @@ const intrPrefix = "intr"
 
 type Interrupts uint
 
-func (intr Interrupts) String() string { // implements recordPart >> fmt.Stringer
+// implement recordPart
+
+func (intr Interrupts) String() string { // implements fmt.Stringer
 	return fmt.Sprint(uint(intr))
+}
+func (intr Interrupts) WriteTo(w io.Writer) (int64, error) { // implements io.WriterTo
+	return writeTo(w, intr, 0)
 }
 
 func ParseInterrupts(line string) (intr recordPart, err error) {
@@ -120,8 +163,13 @@ const ctxtPrefix = "ctxt"
 
 type ContextSwitches uint
 
-func (ctxt ContextSwitches) String() string { // implements recordPart >> fmt.Stringer
+// implement recordPart
+
+func (ctxt ContextSwitches) String() string { // implements fmt.Stringer
 	return fmt.Sprint(uint(ctxt))
+}
+func (ctxt ContextSwitches) WriteTo(w io.Writer) (int64, error) { // implements io.WriterTo
+	return writeTo(w, ctxt, 0)
 }
 
 func ParseContextSwitches(line string) (ctxt recordPart, err error) {
@@ -149,8 +197,15 @@ type Procs struct {
 	blocked uint
 }
 
-func (procs Procs) String() string { // implements recordPart >> fmt.Stringer
-	return fmt.Sprintf("%d %d %d", procs.forks, procs.running, procs.blocked)
+// implement recordPart
+
+func (procs Procs) String() string { // implements fmt.Stringer
+	buf := new(bytes.Buffer)
+	procs.WriteTo(buf)
+	return buf.String()
+}
+func (procs Procs) WriteTo(w io.Writer) (n int64, err error) { // implements io.WriterTo
+	return writeManyTo(w, 0, procs.forks, procs.running, procs.blocked)
 }
 
 func (procs *Procs) parse(line string) error {
@@ -181,8 +236,13 @@ type VmstatRecord struct {
 	procs Procs
 }
 
-func (record VmstatRecord) String() string {
-	return fmt.Sprintf("%s %s %s %s", record.procs, record.intr, record.ctxt, record.cpu)
+func (record VmstatRecord) String() string { // implements fmt.Stringer
+	buf := new(bytes.Buffer)
+	record.WriteTo(buf)
+	return buf.String()
+}
+func (record VmstatRecord) WriteTo(w io.Writer) (n int64, err error) { // implements io.WriterTo
+	return writeManyTo(w, 0, record.procs, record.intr, record.ctxt, record.cpu)
 }
 
 func parseVmstat() (record VmstatRecord, err error) {
@@ -218,7 +278,7 @@ func parseVmstat() (record VmstatRecord, err error) {
 					return
 				}
 			} else {
-				//fmt.Printf("Unsupported: %s\n", line)
+				// ignore other records
 			}
 		}
 	}
