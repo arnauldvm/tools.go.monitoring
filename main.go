@@ -20,9 +20,20 @@ func printLine(wt io.WriterTo) {
 }
 
 func main() {
-	period, err := time.ParseDuration("500ms")
+	var periodStr, durationStr string
+	if len(os.Args) > 1 {
+		periodStr = os.Args[1]
+	} else {
+		periodStr = "500ms"
+	}
+	if len(os.Args) > 2 {
+		durationStr = os.Args[2]
+	} else {
+		durationStr = "5s"
+	}
+	period, err := time.ParseDuration(periodStr)
 	check(err)
-	duration, err := time.ParseDuration("5s")
+	duration, err := time.ParseDuration(durationStr)
 	check(err)
 	cout := make(chan vmstat.VmstatRecord)
 	go vmstat.Poll(period, duration, cout)
