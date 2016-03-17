@@ -49,6 +49,8 @@ func parseFirstField(line, prefix string) (field uint, err error) {
 }
 
 type recordPart fmt.Stringer
+type parserFunction func(string) (recordPart, error)
+
 /* CPU */
 
 const cpuPrefix = "cpu"
@@ -59,7 +61,7 @@ func (cpu Cpu) String() string { // implements recordPart >> fmt.Stringer
 	return fmt.Sprint([]uint(cpu))
 }
 
-func ParseCpu(line string) (cpu Cpu, err error) {
+func ParseCpu(line string) (cpu recordPart, err error) {
 	fields := strings.Fields(line)
 	newcpu := make([]uint, len(fields)-1)
 	for i, f := range fields {
@@ -87,7 +89,7 @@ func (intr Interrupts) String() string { // implements recordPart >> fmt.Stringe
 	return fmt.Sprint(uint(intr))
 }
 
-func ParseInterrupts(line string) (intr Interrupts, err error) {
+func ParseInterrupts(line string) (intr recordPart, err error) {
 	field, err := parseFirstField(line, intrPrefix)
 	if err != nil {
 		return
@@ -127,6 +129,11 @@ type VmstatRecord struct {
 
 /* Polling */
 
+var parsers = map[string]parserFunction{
+	cpuPrefix:  ParseCpu,
+	intrPrefix: ParseInterrupts,
+}
+
 // Poll sends a VmstatLine in the channel every period until duration
 func Poll(period time.Duration, duration time.Duration, cout chan VmstatRecord) {
 	startTime := time.Now()
@@ -141,17 +148,13 @@ func Poll(period time.Duration, duration time.Duration, cout chan VmstatRecord) 
 			scanner := bufio.NewScanner(inFile)
 			for j := 0; scanner.Scan(); j++ {
 				line := scanner.Text()
-				switch {
-				case strings.HasPrefix(line, cpuPrefix+" "):
-					cpu, err := ParseCpu(line)
+				linePrefix := strings.SplitN(line, " ", 2)[0]
+				parserFn, ok := parsers[linePrefix]
+				if ok {
+					recordPart, err := parserFn(line)
 					check(err)
-					fmt.Println(cpu)
-				case strings.HasPrefix(line, intrPrefix+" "):
-					intr, err := ParseInterrupts(line)
-					check(err)
-					fmt.Println(intr)
-
-				default:
+					fmt.Println(recordPart)
+				} else {
 					//fmt.Printf("Unsupported: %s\n", line)
 				}
 			}
