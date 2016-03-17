@@ -230,10 +230,10 @@ func (procs *Procs) parse(line string) error {
 /* Vmstat record */
 
 type VmstatRecord struct {
-	cpu   Cpu
+	procs Procs
 	intr  Interrupts
 	ctxt  ContextSwitches
-	procs Procs
+	cpu   Cpu
 }
 
 func (record VmstatRecord) String() string { // implements fmt.Stringer
