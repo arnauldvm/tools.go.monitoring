@@ -2,7 +2,6 @@ package vmstat // import "sic.smals.be/tools/monitoring/vmstat"
 
 import (
 	"bufio"
-	"errors"
 	"fmt"
 	"os"
 	"path"
@@ -34,7 +33,7 @@ func checkPrefix(expected, actual string) error {
 	if expected == actual {
 		return nil
 	}
-	return errors.New("Not a '" + expected + "' line (found '" + actual + "')")
+	return fmt.Errorf("Not a '%s' line (found '%s')", expected, actual)
 }
 
 func parseFirstField(line, prefix string) (field uint, err error) {
