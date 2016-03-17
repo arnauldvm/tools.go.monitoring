@@ -69,7 +69,7 @@ func ParseCpu(line string) (cpu Cpu, err error) {
 		check(err)
 		newcpu[i-1] = uint(uint64field)
 	}
-	return newcpu, nil
+	return Cpu(newcpu), nil
 }
 
 /* Interrupts */
