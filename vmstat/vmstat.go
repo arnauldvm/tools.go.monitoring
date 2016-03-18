@@ -289,7 +289,6 @@ func (record VmstatRecord) WriteTo(w io.Writer) (n int64, err error) { // implem
 }
 
 func parseVmstat() (record VmstatRecord, err error) {
-	record = *new(VmstatRecord)
 	inFile, err := os.Open(procStat)
 	if err != nil {
 		return
