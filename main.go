@@ -22,8 +22,7 @@ func printLine(wt io.WriterTo) {
 func main() {
 	var usage bool
 	flag.BoolVar(&usage, "usage", false, "prints this usage description")
-	flag.BoolVar(&usage, "h", false, "prints this usage description")
-	flag.BoolVar(&usage, "help", false, "prints this usage description")
+	// -h, -help, --help also automatically recognised
 	periodPtr := flag.Duration("interval", 500e6, "poll interval")
 	durationPtr := flag.Duration("duration", 0, "monitoring duration")
 	flag.Parse()
