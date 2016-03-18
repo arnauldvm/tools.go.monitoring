@@ -147,6 +147,13 @@ func (cpu Cpu) WriteTo(w io.Writer) (n int64, err error) { // implements io.Writ
 	}
 	return
 }
+func (cpu Cpu) diff(prevCpu Cpu) (diffCpu Cpu) {
+	diffCpu = Cpu(make([]uint, len(cpu)))
+	for i, val := range cpu {
+		diffCpu[i] = val - prevCpu[i]
+	}
+	return
+}
 
 func ParseCpu(line string) (cpu recordPart, err error) {
 	fields := strings.Fields(line)
@@ -184,6 +191,9 @@ func (intr Interrupts) String() string { // implements fmt.Stringer
 func (intr Interrupts) WriteTo(w io.Writer) (int64, error) { // implements io.WriterTo
 	return writeTo(w, intr, 0)
 }
+func (intr Interrupts) diff(prevIntr Interrupts) Interrupts {
+	return Interrupts(intr - prevIntr)
+}
 
 func ParseInterrupts(line string) (intr recordPart, err error) {
 	field, err := parseFirstField(line, intrPrefix)
@@ -209,6 +219,9 @@ func (ctxt ContextSwitches) String() string { // implements fmt.Stringer
 }
 func (ctxt ContextSwitches) WriteTo(w io.Writer) (int64, error) { // implements io.WriterTo
 	return writeTo(w, ctxt, 0)
+}
+func (ctxt ContextSwitches) diff(prevCtxt ContextSwitches) ContextSwitches {
+	return ContextSwitches(ctxt - prevCtxt)
 }
 
 func ParseContextSwitches(line string) (ctxt recordPart, err error) {
@@ -248,6 +261,12 @@ func (procs Procs) String() string { // implements fmt.Stringer
 func (procs Procs) WriteTo(w io.Writer) (n int64, err error) { // implements io.WriterTo
 	return writeManyTo(w, 0, procs.forks, procs.running, procs.blocked)
 }
+func (procs Procs) diff(prevProcs Procs) (diffProcs Procs) {
+	diffProcs.forks = procs.forks - prevProcs.forks
+	diffProcs.running = procs.running // not an accumulator, but an instant value
+	diffProcs.blocked = procs.blocked // not an accumulator, but an instant value
+	return
+}
 
 func (procs *Procs) parse(line string) error {
 	fields := strings.Fields(line)
@@ -270,13 +289,24 @@ func (procs *Procs) parse(line string) error {
 
 /* Vmstat record */
 
-var VmstatHeader = procsHeader.append(intrHeader).append(ctxtHeader).append(cpuHeader)
+var VmstatHeader = Header([]string{"a/d"}).append(procsHeader).append(intrHeader).append(ctxtHeader).append(cpuHeader)
+
+type cumulFlag bool
+
+func (c cumulFlag) String() string {
+	if c {
+		return "a"
+	} else {
+		return "d"
+	}
+}
 
 type VmstatRecord struct {
-	procs Procs
-	intr  Interrupts
-	ctxt  ContextSwitches
-	cpu   Cpu
+	isCumul cumulFlag
+	procs   Procs
+	intr    Interrupts
+	ctxt    ContextSwitches
+	cpu     Cpu
 }
 
 func (record VmstatRecord) String() string { // implements fmt.Stringer
@@ -285,7 +315,15 @@ func (record VmstatRecord) String() string { // implements fmt.Stringer
 	return buf.String()
 }
 func (record VmstatRecord) WriteTo(w io.Writer) (n int64, err error) { // implements io.WriterTo
-	return writeManyTo(w, 0, record.procs, record.intr, record.ctxt, record.cpu)
+	return writeManyTo(w, 0, record.isCumul, record.procs, record.intr, record.ctxt, record.cpu)
+}
+func (record VmstatRecord) diff(prevRecord VmstatRecord) (diffRecord VmstatRecord) {
+	diffRecord.isCumul = cumulFlag(false)
+	diffRecord.procs = record.procs.diff(prevRecord.procs)
+	diffRecord.intr = record.intr.diff(prevRecord.intr)
+	diffRecord.ctxt = record.ctxt.diff(prevRecord.ctxt)
+	diffRecord.cpu = record.cpu.diff(prevRecord.cpu)
+	return
 }
 
 var parsers = map[string]parserFunction{
@@ -331,14 +369,17 @@ func parseVmstat() (record VmstatRecord, err error) {
 		}
 	}
 	err = scanner.Err()
+	record.isCumul = true
 	return
 }
 
 /* Polling */
 
-// Poll sends a VmstatLine in the channel every period until duration
-func Poll(period time.Duration, duration time.Duration, cout chan VmstatRecord) {
+// Poll sends a VmstatLine in the channel every period until duration.
+// If cumul is false, it prints the diff of the accumulators, instead of the accumulators themselves
+func Poll(period time.Duration, duration time.Duration, cumul bool, cout chan VmstatRecord) {
 	startTime := time.Now()
+	var oldRecord VmstatRecord
 	for i := 0; (0 == duration) || (time.Since(startTime) <= duration); i++ {
 		if i > 0 {
 			time.Sleep(period)
@@ -348,7 +389,16 @@ func Poll(period time.Duration, duration time.Duration, cout chan VmstatRecord) 
 			log.Println(err)
 			continue
 		}
-		cout <- record
+		if cumul {
+			cout <- record
+		} else {
+			if i < 1 {
+				cout <- record
+			} else {
+				cout <- record.diff(oldRecord)
+			}
+			oldRecord = record
+		}
 	}
 	close(cout)
 }

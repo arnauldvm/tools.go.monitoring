@@ -25,13 +25,14 @@ func main() {
 	// -h, -help, --help also automatically recognised
 	periodPtr := flag.Duration("interval", 500e6, "poll interval")
 	durationPtr := flag.Duration("duration", 0, "monitoring duration")
+	cumulPtr := flag.Bool("cumul", false, "log cumulative counters instead of delta")
 	flag.Parse()
 	if usage {
 		flag.PrintDefaults()
 		return
 	}
 	cout := make(chan vmstat.VmstatRecord)
-	go vmstat.Poll(*periodPtr, *durationPtr, cout)
+	go vmstat.Poll(*periodPtr, *durationPtr, *cumulPtr, cout)
 	printLine(vmstat.VmstatHeader)
 	for dat := range cout {
 		printLine(dat)
