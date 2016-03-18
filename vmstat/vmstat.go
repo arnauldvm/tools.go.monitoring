@@ -340,7 +340,7 @@ var parsers = map[string]parserFunction{
 // Poll sends a VmstatLine in the channel every period until duration
 func Poll(period time.Duration, duration time.Duration, cout chan VmstatRecord) {
 	startTime := time.Now()
-	for i := 0; time.Since(startTime) <= duration; i++ {
+	for i := 0; (0 == duration) || (time.Since(startTime) <= duration); i++ {
 		if i > 0 {
 			time.Sleep(period)
 		}
