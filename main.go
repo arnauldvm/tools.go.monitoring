@@ -27,8 +27,8 @@ func main() {
 	var usage bool
 	flag.BoolVar(&usage, "usage", false, "prints this usage description")
 	// -h, -help, --help also automatically recognised
-	periodPtr := flag.Duration("interval", 500e6, "poll interval")
-	durationPtr := flag.Duration("duration", 0, "monitoring duration")
+	periodPtr := flag.Duration("interval", 1e9, "poll interval")                           // defaults to 1e9ns = 1s
+	durationPtr := flag.Duration("duration", 0, "monitoring duration (unlimited if zero)") // defaults to unlimited
 	cumulPtr := flag.Bool("cumul", false, "log cumulative counters instead of delta")
 	timePtr := flag.Bool("time", true, "add timestamp prefix")
 	flag.Parse()
