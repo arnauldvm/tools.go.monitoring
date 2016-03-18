@@ -15,7 +15,7 @@ import (
 
 const (
 	defaultProcStat = "/proc/stat"
-	separator       = " "
+	Separator       = " "
 )
 
 /* Header is a list of field names. By convention names ending with "/a"
@@ -29,7 +29,7 @@ func (h Header) String() string { // implements fmt.Stringer
 	return buf.String()
 }
 func (h Header) WriteTo(w io.Writer) (n int64, err error) { // implements io.WriterTo
-	return writeTo(w, strings.Join(h, separator), 0)
+	return writeTo(w, strings.Join(h, Separator), 0)
 }
 func (h Header) append(k Header) Header {
 	return Header(append(h, k...))
@@ -88,7 +88,7 @@ func writeManyTo(w io.Writer, p int64, vals ...interface{}) (n int64, err error)
 	n = p
 	for i, val := range vals {
 		if i > 0 {
-			n, err = writeTo(w, separator, n)
+			n, err = writeTo(w, Separator, n)
 			if err != nil {
 				return
 			}
@@ -135,7 +135,7 @@ func (cpu Cpu) String() string { // implements fmt.Stringer
 func (cpu Cpu) WriteTo(w io.Writer) (n int64, err error) { // implements io.WriterTo
 	for i, val := range cpu {
 		if i > 0 {
-			n, err = writeTo(w, separator, n)
+			n, err = writeTo(w, Separator, n)
 			if err != nil {
 				return
 			}
