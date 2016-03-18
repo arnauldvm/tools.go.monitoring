@@ -1,9 +1,9 @@
 package main
 
 import (
+	"flag"
 	"io"
 	"os"
-	"time"
 
 	"sic.smals.be/tools/monitoring/vmstat"
 )
@@ -20,23 +20,12 @@ func printLine(wt io.WriterTo) {
 }
 
 func main() {
-	var periodStr, durationStr string
-	if len(os.Args) > 1 {
-		periodStr = os.Args[1]
-	} else {
-		periodStr = "500ms"
+	periodPtr := flag.Duration("interval", 500e6, "poll interval")
+	durationPtr := flag.Duration("duration", 0, "monitoring duration")
+	flag.Parse()
 	}
-	if len(os.Args) > 2 {
-		durationStr = os.Args[2]
-	} else {
-		durationStr = "5s"
-	}
-	period, err := time.ParseDuration(periodStr)
-	check(err)
-	duration, err := time.ParseDuration(durationStr)
-	check(err)
 	cout := make(chan vmstat.VmstatRecord)
-	go vmstat.Poll(period, duration, cout)
+	go vmstat.Poll(*periodPtr, *durationPtr, cout)
 	printLine(vmstat.VmstatHeader)
 	for dat := range cout {
 		printLine(dat)
