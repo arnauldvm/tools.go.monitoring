@@ -288,6 +288,12 @@ func (record VmstatRecord) WriteTo(w io.Writer) (n int64, err error) { // implem
 	return writeManyTo(w, 0, record.procs, record.intr, record.ctxt, record.cpu)
 }
 
+var parsers = map[string]parserFunction{
+	cpuPrefix:  ParseCpu,
+	intrPrefix: ParseInterrupts,
+	ctxtPrefix: ParseContextSwitches,
+}
+
 func parseVmstat() (record VmstatRecord, err error) {
 	inFile, err := os.Open(procStat)
 	if err != nil {
@@ -329,12 +335,6 @@ func parseVmstat() (record VmstatRecord, err error) {
 }
 
 /* Polling */
-
-var parsers = map[string]parserFunction{
-	cpuPrefix:  ParseCpu,
-	intrPrefix: ParseInterrupts,
-	ctxtPrefix: ParseContextSwitches,
-}
 
 // Poll sends a VmstatLine in the channel every period until duration
 func Poll(period time.Duration, duration time.Duration, cout chan VmstatRecord) {
