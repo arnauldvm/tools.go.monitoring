@@ -101,6 +101,47 @@ func writeManyTo(w io.Writer, p int64, vals ...interface{}) (n int64, err error)
 	return
 }
 
+/* Field Definition */
+
+type fieldDef struct {
+	header        string
+	isAccumulator bool
+}
+
+func (fd fieldDef) String() string { // implements fmt.Stringer
+	if fd.isAccumulator {
+		return fd.header + "/a"
+	} else {
+		return fd.header + "/i"
+	}
+}
+
+func defToHeader(def fieldDef) Header {
+	return Header([]string{def.String()})
+}
+func defsToHeader(defs []fieldDef) Header {
+	h := Header(make([]string, len(defs)))
+	for i, d := range defs {
+		h[i] = d.String()
+	}
+	return h
+}
+
+func diffField(fieldDef fieldDef, val, prevVal uint) uint {
+	if fieldDef.isAccumulator {
+		return val - prevVal
+	} else {
+		return val
+	}
+}
+func diffFields(fieldsDefs []fieldDef, vals, prevVals []uint) []uint {
+	diffVals := make([]uint, len(vals))
+	for i, val := range vals {
+		diffVals[i] = diffField(fieldsDefs[i], val, prevVals[i])
+	}
+	return diffVals
+}
+
 /* CPU */
 
 const cpuPrefix = "cpu"
@@ -112,19 +153,19 @@ type Cpu []uint
    sysconf(_SC_CLK_TCK) to obtain the right value), that
    the system spent in various states >> */
 
-var cpuHeader = Header([]string{
-	"cpu:total/a",
-	"cpu:user/a",
-	"cpu:nice/a",
-	"cpu:system/a",
-	"cpu:idle/a",
-	"cpu:iowait/a",
-	"cpu:irq/a",
-	"cpu:softirq/a",
-	"cpu:steal/a",
-	"cpu:guest/a",
-	"cpu:guest_nice/a",
-})
+var cpuFieldsDefs = []fieldDef{
+	fieldDef{"cpu:total", true},
+	fieldDef{"cpu:user", true},
+	fieldDef{"cpu:nice", true},
+	fieldDef{"cpu:system", true},
+	fieldDef{"cpu:idle", true},
+	fieldDef{"cpu:iowait", true},
+	fieldDef{"cpu:irq", true},
+	fieldDef{"cpu:softirq", true},
+	fieldDef{"cpu:steal", true},
+	fieldDef{"cpu:guest", true},
+	fieldDef{"cpu:guest_nice", true},
+}
 
 // implement recordPart
 
@@ -148,12 +189,8 @@ func (cpu Cpu) WriteTo(w io.Writer) (n int64, err error) { // implements io.Writ
 	}
 	return
 }
-func (cpu Cpu) diff(prevCpu Cpu) (diffCpu Cpu) {
-	diffCpu = Cpu(make([]uint, len(cpu)))
-	for i, val := range cpu {
-		diffCpu[i] = val - prevCpu[i]
-	}
-	return
+func (cpu Cpu) diff(prevCpu Cpu) Cpu {
+	return Cpu(diffFields(cpuFieldsDefs, cpu, prevCpu))
 }
 
 func ParseCpu(line string) (cpu recordPart, err error) {
@@ -185,7 +222,7 @@ const intrPrefix = "intr"
 
 type Interrupts uint
 
-var intrHeader = Header([]string{"intr:total/a"})
+var intrFieldDef = fieldDef{"intr:total", true}
 
 // implement recordPart
 
@@ -196,7 +233,7 @@ func (intr Interrupts) WriteTo(w io.Writer) (int64, error) { // implements io.Wr
 	return writeTo(w, intr, 0)
 }
 func (intr Interrupts) diff(prevIntr Interrupts) Interrupts {
-	return Interrupts(intr - prevIntr)
+	return Interrupts(diffField(intrFieldDef, uint(intr), uint(prevIntr)))
 }
 
 func ParseInterrupts(line string) (intr recordPart, err error) {
@@ -214,7 +251,7 @@ const ctxtPrefix = "ctxt"
 
 type ContextSwitches uint
 
-var ctxtHeader = Header([]string{"ctxt:total/a"})
+var ctxtFieldDef = fieldDef{"ctxt:total", true}
 
 // implement recordPart
 
@@ -225,7 +262,7 @@ func (ctxt ContextSwitches) WriteTo(w io.Writer) (int64, error) { // implements 
 	return writeTo(w, ctxt, 0)
 }
 func (ctxt ContextSwitches) diff(prevCtxt ContextSwitches) ContextSwitches {
-	return ContextSwitches(ctxt - prevCtxt)
+	return ContextSwitches(diffField(ctxtFieldDef, uint(ctxt), uint(prevCtxt)))
 }
 
 func ParseContextSwitches(line string) (ctxt recordPart, err error) {
@@ -245,15 +282,15 @@ const (
 	blockedProcPrefix = "procs_blocked"
 )
 
-var procPrefixes = []string{forksPrefix, runningProcPrefix, blockedProcPrefix}
+var procsPrefixes = []string{forksPrefix, runningProcPrefix, blockedProcPrefix}
 
-type Procs struct {
-	forks   int
-	running uint
-	blocked uint
+type Procs []uint
+
+var procsFieldsDefs = []fieldDef{
+	fieldDef{"procs:forks", true},
+	fieldDef{"procs:running", false},
+	fieldDef{"procs:blocked", false},
 }
-
-var procsHeader = Header([]string{"proc:forks/a", "proc:running/i", "proc:blocked/i"})
 
 // implement recordPart
 
@@ -263,37 +300,34 @@ func (procs Procs) String() string { // implements fmt.Stringer
 	return buf.String()
 }
 func (procs Procs) WriteTo(w io.Writer) (n int64, err error) { // implements io.WriterTo
-	return writeManyTo(w, 0, procs.forks, procs.running, procs.blocked)
+	return writeManyTo(w, 0, procs[0], procs[1], procs[2])
 }
 func (procs Procs) diff(prevProcs Procs) (diffProcs Procs) {
-	diffProcs.forks = procs.forks - prevProcs.forks
-	diffProcs.running = procs.running // not an accumulator, but an instant value
-	diffProcs.blocked = procs.blocked // not an accumulator, but an instant value
-	return
+	return Procs(diffFields(procsFieldsDefs, procs, prevProcs))
 }
 
-func (procs *Procs) parse(line string) error {
+func (procs Procs) parse(line string) error {
 	fields := strings.Fields(line)
 	uint64field, err := strconv.ParseUint(fields[1], 10, 0)
 	if err != nil {
 		return err
 	}
-	switch fields[0] {
-	case forksPrefix:
-		procs.forks = int(uint64field)
-	case runningProcPrefix:
-		procs.running = uint(uint64field)
-	case blockedProcPrefix:
-		procs.blocked = uint(uint64field)
-	default:
-		return fmt.Errorf("Not a '%s' line (found '%s')", strings.Join(procPrefixes, "' or '"), fields[0])
+	for i, pref := range procsPrefixes {
+		if fields[0] == pref {
+			procs[i] = uint(uint64field)
+			return nil
+		}
 	}
-	return nil
+	return fmt.Errorf("Not a '%s' line (found '%s')", strings.Join(procsPrefixes, "' or '"), fields[0])
 }
 
 /* Vmstat record */
 
-var VmstatHeader = Header([]string{"a/d"}).append(procsHeader).append(intrHeader).append(ctxtHeader).append(cpuHeader)
+var VmstatHeader = Header([]string{"a/d"}).
+	append(defsToHeader(procsFieldsDefs)).
+	append(defToHeader(intrFieldDef)).
+	append(defToHeader(ctxtFieldDef)).
+	append(defsToHeader(cpuFieldsDefs))
 
 type cumulFlag bool
 
@@ -342,6 +376,7 @@ func parseVmstat() (record VmstatRecord, err error) {
 		return
 	}
 	defer inFile.Close()
+	record.procs = Procs(make([]uint, 3)) // this is built incrementally, so need to preallocate
 	scanner := bufio.NewScanner(inFile)
 	for j := 0; scanner.Scan(); j++ {
 		line := scanner.Text()
@@ -362,7 +397,7 @@ func parseVmstat() (record VmstatRecord, err error) {
 				record.ctxt = val
 			}
 		} else {
-			if stringInSlice(linePrefix, procPrefixes) {
+			if stringInSlice(linePrefix, procsPrefixes) {
 				err = record.procs.parse(line)
 				if err != nil {
 					return
