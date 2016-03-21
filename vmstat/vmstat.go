@@ -113,6 +113,7 @@ type Cpu []uint
    the system spent in various states >> */
 
 var cpuHeader = Header([]string{
+	"cpu:total/a",
 	"cpu:user/a",
 	"cpu:nice/a",
 	"cpu:system/a",
@@ -157,7 +158,8 @@ func (cpu Cpu) diff(prevCpu Cpu) (diffCpu Cpu) {
 
 func ParseCpu(line string) (cpu recordPart, err error) {
 	fields := strings.Fields(line)
-	newcpu := make([]uint, len(fields)-1)
+	newcpu := make([]uint, len(fields)-1+1)
+	var val uint
 	for i, f := range fields {
 		if i == 0 {
 			err = checkPrefix(cpuPrefix, f)
@@ -170,7 +172,9 @@ func ParseCpu(line string) (cpu recordPart, err error) {
 		if err != nil {
 			return nil, err
 		}
-		newcpu[i-1] = uint(uint64field)
+		val = uint(uint64field)
+		newcpu[i-1+1] = val
+		newcpu[0] += val // cpu:total field
 	}
 	return Cpu(newcpu), nil
 }
