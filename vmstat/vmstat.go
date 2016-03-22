@@ -78,7 +78,7 @@ type recordPart interface {
 	fmt.Stringer
 	io.WriterTo
 }
-type parserFunction func(string) (recordPart, error)
+type parserFunction func(def lineDef, line string, targetSlice []uint) error
 
 func writeTo(w io.Writer, v interface{}, p int64) (int64, error) {
 	m, err := w.Write([]byte(fmt.Sprint(v)))
@@ -142,9 +142,20 @@ func diffFields(fieldsDefs []fieldDef, vals, prevVals []uint) []uint {
 	return diffVals
 }
 
+/* Line definition */
+
+type lineDef struct {
+	prefix string
+	parser parserFunction
+}
+
+func (ld lineDef) String() string {
+	return ld.prefix
+}
+
 /* CPU */
 
-const cpuPrefix = "cpu"
+var cpuLineDef = lineDef{"cpu", ParseCpu}
 
 type Cpu []uint
 
@@ -193,32 +204,35 @@ func (cpu Cpu) diff(prevCpu Cpu) Cpu {
 	return Cpu(diffFields(cpuFieldsDefs, cpu, prevCpu))
 }
 
-func ParseCpu(line string) (cpu recordPart, err error) {
+func makeEmptyCpu() Cpu {
+	return Cpu(make([]uint, len(cpuFieldsDefs)))
+}
+func ParseCpu(def lineDef, line string, targetSlice []uint) (err error) {
 	fields := strings.Fields(line)
-	newcpu := make([]uint, len(fields)-1+1)
 	var val uint
 	for i, f := range fields {
 		if i == 0 {
-			err = checkPrefix(cpuPrefix, f)
+			err = checkPrefix(def.prefix, f)
 			if err != nil {
 				return
 			}
 			continue
 		}
-		uint64field, err := strconv.ParseUint(f, 10, 0)
+		var uint64field uint64
+		uint64field, err = strconv.ParseUint(f, 10, 0)
 		if err != nil {
-			return nil, err
+			return
 		}
 		val = uint(uint64field)
-		newcpu[i-1+1] = val
-		newcpu[0] += val // cpu:total field
+		targetSlice[i-1+1] = val
+		targetSlice[0] += val // cpu:total field
 	}
-	return Cpu(newcpu), nil
+	return
 }
 
 /* Interrupts */
 
-const intrPrefix = "intr"
+var intrLineDef = lineDef{"intr", ParseInterrupts}
 
 type Interrupts uint
 
@@ -236,18 +250,17 @@ func (intr Interrupts) diff(prevIntr Interrupts) Interrupts {
 	return Interrupts(diffField(intrFieldDef, uint(intr), uint(prevIntr)))
 }
 
-func ParseInterrupts(line string) (intr recordPart, err error) {
-	field, err := parseFirstField(line, intrPrefix)
-	if err != nil {
-		return
-	}
-	intr = Interrupts(field)
+func makeEmptyInterrupts() Interrupts {
+	return *new(Interrupts)
+}
+func ParseInterrupts(def lineDef, line string, targetSlice []uint) (err error) {
+	targetSlice[0], err = parseFirstField(line, def.prefix)
 	return
 }
 
 /* Context switches */
 
-const ctxtPrefix = "ctxt"
+var ctxtLineDef = lineDef{"ctxt", ParseContextSwitches}
 
 type ContextSwitches uint
 
@@ -265,24 +278,19 @@ func (ctxt ContextSwitches) diff(prevCtxt ContextSwitches) ContextSwitches {
 	return ContextSwitches(diffField(ctxtFieldDef, uint(ctxt), uint(prevCtxt)))
 }
 
-func ParseContextSwitches(line string) (ctxt recordPart, err error) {
-	field, err := parseFirstField(line, ctxtPrefix)
-	if err != nil {
-		return
-	}
-	ctxt = ContextSwitches(field)
+func makeEmptyContextSwitches() ContextSwitches {
+	return *new(ContextSwitches)
+}
+func ParseContextSwitches(def lineDef, line string, targetSlice []uint) (err error) {
+	targetSlice[0], err = parseFirstField(line, def.prefix)
 	return
 }
 
 /* Process/Threads */
 
-const (
-	forksPrefix       = "processes"
-	runningProcPrefix = "procs_running"
-	blockedProcPrefix = "procs_blocked"
-)
-
-var procsPrefixes = []string{forksPrefix, runningProcPrefix, blockedProcPrefix}
+var forksLineDef = lineDef{"processes", ParseProcsForks}
+var runningProcsLineDef = lineDef{"procs_running", ParseRunningProcs}
+var blockedProcsLineDef = lineDef{"procs_blocked", ParseBlockedProcs}
 
 type Procs []uint
 
@@ -306,19 +314,22 @@ func (procs Procs) diff(prevProcs Procs) (diffProcs Procs) {
 	return Procs(diffFields(procsFieldsDefs, procs, prevProcs))
 }
 
-func (procs Procs) parse(line string) error {
-	fields := strings.Fields(line)
-	uint64field, err := strconv.ParseUint(fields[1], 10, 0)
-	if err != nil {
-		return err
-	}
-	for i, pref := range procsPrefixes {
-		if fields[0] == pref {
-			procs[i] = uint(uint64field)
-			return nil
-		}
-	}
-	return fmt.Errorf("Not a '%s' line (found '%s')", strings.Join(procsPrefixes, "' or '"), fields[0])
+func makeEmptyProcs() Procs {
+	return Procs(make([]uint, len(procsFieldsDefs)))
+}
+func ParseProcsForks(def lineDef, line string, targetSlice []uint) (err error) {
+	targetSlice[0], err = parseFirstField(line, def.prefix)
+	return
+}
+
+func ParseRunningProcs(def lineDef, line string, targetSlice []uint) (err error) {
+	targetSlice[1], err = parseFirstField(line, def.prefix)
+	return
+}
+
+func ParseBlockedProcs(def lineDef, line string, targetSlice []uint) (err error) {
+	targetSlice[2], err = parseFirstField(line, def.prefix)
+	return
 }
 
 /* Vmstat record */
@@ -328,6 +339,15 @@ var VmstatHeader = Header([]string{"a/d"}).
 	append(defToHeader(intrFieldDef)).
 	append(defToHeader(ctxtFieldDef)).
 	append(defsToHeader(cpuFieldsDefs))
+
+var linesDefs = map[string]lineDef{
+	cpuLineDef.prefix:          cpuLineDef,
+	intrLineDef.prefix:         intrLineDef,
+	ctxtLineDef.prefix:         ctxtLineDef,
+	forksLineDef.prefix:        forksLineDef,
+	runningProcsLineDef.prefix: runningProcsLineDef,
+	blockedProcsLineDef.prefix: blockedProcsLineDef,
+}
 
 type cumulFlag bool
 
@@ -364,46 +384,46 @@ func (record VmstatRecord) diff(prevRecord VmstatRecord) (diffRecord VmstatRecor
 	return
 }
 
-var parsers = map[string]parserFunction{
-	cpuPrefix:  ParseCpu,
-	intrPrefix: ParseInterrupts,
-	ctxtPrefix: ParseContextSwitches,
+func makeEmptyVmstatRecord() VmstatRecord {
+	return VmstatRecord{
+		false,
+		makeEmptyProcs(),
+		makeEmptyInterrupts(),
+		makeEmptyContextSwitches(),
+		makeEmptyCpu(),
+	}
 }
-
 func parseVmstat() (record VmstatRecord, err error) {
 	inFile, err := os.Open(procStat)
 	if err != nil {
 		return
 	}
 	defer inFile.Close()
-	record.procs = Procs(make([]uint, 3)) // this is built incrementally, so need to preallocate
+	record = makeEmptyVmstatRecord()
 	scanner := bufio.NewScanner(inFile)
 	for j := 0; scanner.Scan(); j++ {
 		line := scanner.Text()
 		linePrefix := strings.SplitN(line, " ", 2)[0]
-		parserFn, ok := parsers[linePrefix]
+		ld, ok := linesDefs[linePrefix]
 		if ok {
-			var part recordPart
-			part, err = parserFn(line)
+			switch ld.prefix {
+			case cpuLineDef.prefix:
+				err = ld.parser(ld, line, record.cpu)
+			case intrLineDef.prefix:
+				tmp := make([]uint, 1)
+				err = ld.parser(ld, line, tmp)
+				record.intr = Interrupts(tmp[0])
+			case ctxtLineDef.prefix:
+				tmp := make([]uint, 1)
+				err = ld.parser(ld, line, tmp)
+				record.ctxt = ContextSwitches(tmp[0])
+			case forksLineDef.prefix, runningProcsLineDef.prefix, blockedProcsLineDef.prefix:
+				err = ld.parser(ld, line, record.procs)
+			default:
+				err = fmt.Errorf("Unexpected line def, should not be here")
+			}
 			if err != nil {
 				return
-			}
-			switch val := part.(type) {
-			case Cpu:
-				record.cpu = val
-			case Interrupts:
-				record.intr = val
-			case ContextSwitches:
-				record.ctxt = val
-			}
-		} else {
-			if stringInSlice(linePrefix, procsPrefixes) {
-				err = record.procs.parse(line)
-				if err != nil {
-					return
-				}
-			} else {
-				// ignore other records
 			}
 		}
 	}
