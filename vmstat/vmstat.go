@@ -103,10 +103,13 @@ func writeManyTo(w io.Writer, p int64, vals ...interface{}) (n int64, err error)
 
 /* Field Definition */
 
+type fieldCalculator func(vals []uint) uint
+
 type fieldDef struct {
 	category      string
 	name          string
 	isAccumulator bool
+	calculator    fieldCalculator
 }
 
 func (fd fieldDef) String() string { // implements fmt.Stringer
@@ -166,17 +169,24 @@ type Cpu []uint
    the system spent in various states >> */
 
 var cpuFieldsDefs = []fieldDef{
-	fieldDef{"cpu", "total", true},
-	fieldDef{"cpu", "user", true},
-	fieldDef{"cpu", "nice", true},
-	fieldDef{"cpu", "system", true},
-	fieldDef{"cpu", "idle", true},
-	fieldDef{"cpu", "iowait", true},
-	fieldDef{"cpu", "irq", true},
-	fieldDef{"cpu", "softirq", true},
-	fieldDef{"cpu", "steal", true},
-	fieldDef{"cpu", "guest", true},
-	fieldDef{"cpu", "guest_nice", true},
+	fieldDef{"cpu", "total", true, totalCpuCalculator},
+	fieldDef{"cpu", "user", true, nil},
+	fieldDef{"cpu", "nice", true, nil},
+	fieldDef{"cpu", "system", true, nil},
+	fieldDef{"cpu", "idle", true, nil},
+	fieldDef{"cpu", "iowait", true, nil},
+	fieldDef{"cpu", "irq", true, nil},
+	fieldDef{"cpu", "softirq", true, nil},
+	fieldDef{"cpu", "steal", true, nil},
+	fieldDef{"cpu", "guest", true, nil},
+	fieldDef{"cpu", "guest_nice", true, nil},
+}
+
+func totalCpuCalculator(vals []uint) (total uint) {
+	for i := 1; i < len(vals); i++ {
+		total += vals[i]
+	}
+	return
 }
 
 // implement recordPart
@@ -226,7 +236,11 @@ func ParseCpu(def lineDef, line string, targetSlice []uint) (err error) {
 		}
 		val = uint(uint64field)
 		targetSlice[i-1+1] = val
-		targetSlice[0] += val // cpu:total field
+	}
+	for i, fd := range cpuFieldsDefs {
+		if fd.calculator != nil {
+			targetSlice[i] = fd.calculator(targetSlice)
+		}
 	}
 	return
 }
@@ -237,7 +251,7 @@ var intrLineDef = lineDef{"intr", ParseInterrupts}
 
 type Interrupts uint
 
-var intrFieldDef = fieldDef{"intr", "total", true}
+var intrFieldDef = fieldDef{"intr", "total", true, nil}
 
 // implement recordPart
 
@@ -265,7 +279,7 @@ var ctxtLineDef = lineDef{"ctxt", ParseContextSwitches}
 
 type ContextSwitches uint
 
-var ctxtFieldDef = fieldDef{"ctxt", "total", true}
+var ctxtFieldDef = fieldDef{"ctxt", "total", true, nil}
 
 // implement recordPart
 
@@ -296,9 +310,9 @@ var blockedProcsLineDef = lineDef{"procs_blocked", ParseBlockedProcs}
 type Procs []uint
 
 var procsFieldsDefs = []fieldDef{
-	fieldDef{"procs", "forks", true},
-	fieldDef{"procs", "running", false},
-	fieldDef{"procs", "blocked", false},
+	fieldDef{"procs", "forks", true, nil},
+	fieldDef{"procs", "running", false, nil},
+	fieldDef{"procs", "blocked", false, nil},
 }
 
 // implement recordPart
