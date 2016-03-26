@@ -49,7 +49,8 @@ func (h Header) String() string { // implements fmt.Stringer
 	return buf.String()
 }
 func (h Header) WriteTo(w io.Writer) (n int64, err error) { // implements io.WriterTo
-	return writeTo(w, strings.Join(h, Separator), 0)
+	err = writeTo(w, strings.Join(h, Separator), &n)
+	return
 }
 func (h Header) append(k Header) Header {
 	return Header(append(h, k...))
@@ -87,9 +88,10 @@ func parseFirstField(def lineDef, line string, targetSlice []uint) (err error) {
 
 type parserFunction func(def lineDef, line string, targetSlice []uint) error
 
-func writeTo(w io.Writer, v interface{}, p int64) (int64, error) {
+func writeTo(w io.Writer, v interface{}, p *int64) (err error) {
 	m, err := w.Write([]byte(fmt.Sprint(v)))
-	return p + int64(m), err
+	*p += int64(m)
+	return
 }
 
 /* Field Definition */
@@ -249,13 +251,13 @@ func (record VmstatRecord) String() string { // implements fmt.Stringer
 	return buf.String()
 }
 func (record VmstatRecord) WriteTo(w io.Writer) (n int64, err error) { // implements io.WriterTo
-	n, err = writeTo(w, record.isCumul, n)
+	err = writeTo(w, record.isCumul, &n)
 	for _, field := range record.fields {
-		n, err = writeTo(w, Separator, n)
+		err = writeTo(w, Separator, &n)
 		if err != nil {
 			return
 		}
-		n, err = writeTo(w, field, n)
+		err = writeTo(w, field, &n)
 		if err != nil {
 			return
 		}
