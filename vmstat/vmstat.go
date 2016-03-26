@@ -18,6 +18,26 @@ const (
 	Separator       = " "
 )
 
+const (
+	procsForksIdx, firstProcsIdx  = iota, iota
+	procsRunningIdx               = iota
+	procsBlockedIdx, lastProcsIdx = iota, iota
+	intrTotalIdx                  = iota
+	ctxtTotalIdx                  = iota
+	cpuTotalIdx                   = iota
+	cpuUserIdx, firstCpuIdx       = iota, iota
+	cpuNiceIdx                    = iota
+	cpuSystemIdx                  = iota
+	cpuidleIdx                    = iota
+	cpuIowaitIdx                  = iota
+	cpuIrqIdx                     = iota
+	cpuSoftIrqIdx                 = iota
+	cpuStealIdx                   = iota
+	cpuGuestIdx                   = iota
+	cpuGuestNiceIdx, lastCpuIdx   = iota, iota
+	fieldsCount                   = iota
+)
+
 /* Header is a list of field names. By convention names ending with "/a"
    are accumulators (ever growing), while names ending with "/i" are instant values. */
 
@@ -349,6 +369,8 @@ func ParseBlockedProcs(def lineDef, line string, targetSlice []uint) (err error)
 
 /* Vmstat record */
 
+var allFieldsDefs []fieldDef = append(append(append(append(make([]fieldDef, 0, fieldsCount), procsFieldsDefs...), intrFieldDef), ctxtFieldDef), cpuFieldsDefs...)
+
 var VmstatHeader = Header([]string{"a/d"}).
 	append(defsToHeader(procsFieldsDefs)).
 	append(defToHeader(intrFieldDef)).
@@ -376,10 +398,7 @@ func (c cumulFlag) String() string {
 
 type VmstatRecord struct {
 	isCumul cumulFlag
-	procs   Procs
-	intr    Interrupts
-	ctxt    ContextSwitches
-	cpu     Cpu
+	fields  []uint
 }
 
 func (record VmstatRecord) String() string { // implements fmt.Stringer
@@ -388,24 +407,29 @@ func (record VmstatRecord) String() string { // implements fmt.Stringer
 	return buf.String()
 }
 func (record VmstatRecord) WriteTo(w io.Writer) (n int64, err error) { // implements io.WriterTo
-	return writeManyTo(w, 0, record.isCumul, record.procs, record.intr, record.ctxt, record.cpu)
+	n, err = writeTo(w, record.isCumul, n)
+	for _, field := range record.fields {
+		n, err = writeTo(w, Separator, n)
+		if err != nil {
+			return
+		}
+		n, err = writeTo(w, field, n)
+		if err != nil {
+			return
+		}
+	}
+	return
 }
 func (record VmstatRecord) diff(prevRecord VmstatRecord) (diffRecord VmstatRecord) {
 	diffRecord.isCumul = cumulFlag(false)
-	diffRecord.procs = record.procs.diff(prevRecord.procs)
-	diffRecord.intr = record.intr.diff(prevRecord.intr)
-	diffRecord.ctxt = record.ctxt.diff(prevRecord.ctxt)
-	diffRecord.cpu = record.cpu.diff(prevRecord.cpu)
+	diffRecord.fields = diffFields(allFieldsDefs, record.fields, prevRecord.fields)
 	return
 }
 
 func makeEmptyVmstatRecord() VmstatRecord {
 	return VmstatRecord{
 		false,
-		makeEmptyProcs(),
-		makeEmptyInterrupts(),
-		makeEmptyContextSwitches(),
-		makeEmptyCpu(),
+		make([]uint, fieldsCount),
 	}
 }
 func parseVmstat() (record VmstatRecord, err error) {
@@ -423,17 +447,17 @@ func parseVmstat() (record VmstatRecord, err error) {
 		if ok {
 			switch ld.prefix {
 			case cpuLineDef.prefix:
-				err = ld.parser(ld, line, record.cpu)
+				err = ld.parser(ld, line, record.fields[firstCpuIdx-1:lastCpuIdx+1])
 			case intrLineDef.prefix:
 				tmp := make([]uint, 1)
 				err = ld.parser(ld, line, tmp)
-				record.intr = Interrupts(tmp[0])
+				record.fields[intrTotalIdx] = tmp[0]
 			case ctxtLineDef.prefix:
 				tmp := make([]uint, 1)
 				err = ld.parser(ld, line, tmp)
-				record.ctxt = ContextSwitches(tmp[0])
+				record.fields[ctxtTotalIdx] = tmp[0]
 			case forksLineDef.prefix, runningProcsLineDef.prefix, blockedProcsLineDef.prefix:
-				err = ld.parser(ld, line, record.procs)
+				err = ld.parser(ld, line, record.fields[firstProcsIdx:lastProcsIdx+1])
 			default:
 				err = fmt.Errorf("Unexpected line def, should not be here")
 			}
