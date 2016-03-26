@@ -122,18 +122,6 @@ func defsToHeader(defs []fieldDef) Header {
 	return h
 }
 
-func diffFields(fieldsDefs []fieldDef, vals, prevVals []uint) []uint {
-	diffVals := make([]uint, len(vals))
-	for i, val := range vals {
-		if fieldsDefs[i].isAccumulator {
-			diffVals[i] = val - prevVals[i]
-		} else {
-			diffVals[i] = val
-		}
-	}
-	return diffVals
-}
-
 /* Line definition */
 
 type lineDef struct {
@@ -281,7 +269,14 @@ func (record VmstatRecord) WriteTo(w io.Writer) (n int64, err error) { // implem
 }
 func (record VmstatRecord) diff(prevRecord VmstatRecord) (diffRecord VmstatRecord) {
 	diffRecord.isCumul = cumulFlag(false)
-	diffRecord.fields = diffFields(allFieldsDefs, record.fields, prevRecord.fields)
+	diffRecord.fields = make([]uint, len(record.fields))
+	for i, field := range record.fields {
+		if allFieldsDefs[i].isAccumulator {
+			diffRecord.fields[i] = field - prevRecord.fields[i]
+		} else {
+			diffRecord.fields[i] = field
+		}
+	}
 	return
 }
 
