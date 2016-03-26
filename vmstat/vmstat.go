@@ -156,9 +156,9 @@ var cpuFieldsDefs = []fieldDef{
 	fieldDef{"cpu", "guest_nice", true, nil},
 }
 
-func totalCpuCalculator(vals []uint) (total uint) {
-	for i := 1; i < len(vals); i++ {
-		total += vals[i]
+func totalCpuCalculator(fields []uint) (total uint) {
+	for i := firstCpuIdx; i <= lastCpuIdx; i++ {
+		total += fields[i]
 	}
 	return
 }
@@ -181,11 +181,6 @@ func ParseCpu(def lineDef, line string, targetSlice []uint) (err error) {
 		}
 		val = uint(uint64field)
 		targetSlice[i-1+1] = val
-	}
-	for i, fd := range cpuFieldsDefs {
-		if fd.calculator != nil {
-			targetSlice[i] = fd.calculator(targetSlice)
-		}
 	}
 	return
 }
@@ -321,6 +316,14 @@ func parseVmstat() (record VmstatRecord, err error) {
 		}
 	}
 	err = scanner.Err()
+	if err != nil {
+		return
+	}
+	for i, fd := range allFieldsDefs {
+		if fd.calculator != nil {
+			record.fields[i] = fd.calculator(record.fields)
+		}
+	}
 	record.isCumul = true
 	return
 }
