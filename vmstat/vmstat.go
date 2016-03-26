@@ -336,13 +336,9 @@ func parseVmstat() (record VmstatRecord, err error) {
 			case cpuLineDef.prefix:
 				err = ld.parser(ld, line, record.fields[firstCpuIdx-1:lastCpuIdx+1])
 			case intrLineDef.prefix:
-				tmp := make([]uint, 1)
-				err = ld.parser(ld, line, tmp)
-				record.fields[intrTotalIdx] = tmp[0]
+				err = ld.parser(ld, line, record.fields[intrTotalIdx:intrTotalIdx+1])
 			case ctxtLineDef.prefix:
-				tmp := make([]uint, 1)
-				err = ld.parser(ld, line, tmp)
-				record.fields[ctxtTotalIdx] = tmp[0]
+				err = ld.parser(ld, line, record.fields[ctxtTotalIdx:ctxtTotalIdx+1])
 			case forksLineDef.prefix, runningProcsLineDef.prefix, blockedProcsLineDef.prefix:
 				err = ld.parser(ld, line, record.fields[firstProcsIdx:lastProcsIdx+1])
 			default:
