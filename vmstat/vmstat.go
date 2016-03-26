@@ -122,17 +122,14 @@ func defsToHeader(defs []fieldDef) Header {
 	return h
 }
 
-func diffField(fieldDef fieldDef, val, prevVal uint) uint {
-	if fieldDef.isAccumulator {
-		return val - prevVal
-	} else {
-		return val
-	}
-}
 func diffFields(fieldsDefs []fieldDef, vals, prevVals []uint) []uint {
 	diffVals := make([]uint, len(vals))
 	for i, val := range vals {
-		diffVals[i] = diffField(fieldsDefs[i], val, prevVals[i])
+		if fieldsDefs[i].isAccumulator {
+			diffVals[i] = val - prevVals[i]
+		} else {
+			diffVals[i] = val
+		}
 	}
 	return diffVals
 }
