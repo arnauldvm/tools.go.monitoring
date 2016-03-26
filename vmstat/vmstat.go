@@ -85,40 +85,11 @@ func parseFirstField(line, prefix string) (field uint, err error) {
 	return
 }
 
-func stringInSlice(str string, slice []string) bool {
-	for _, val := range slice {
-		if str == val {
-			return true
-		}
-	}
-	return false
-}
-
-type recordPart interface {
-	fmt.Stringer
-	io.WriterTo
-}
 type parserFunction func(def lineDef, line string, targetSlice []uint) error
 
 func writeTo(w io.Writer, v interface{}, p int64) (int64, error) {
 	m, err := w.Write([]byte(fmt.Sprint(v)))
 	return p + int64(m), err
-}
-func writeManyTo(w io.Writer, p int64, vals ...interface{}) (n int64, err error) {
-	n = p
-	for i, val := range vals {
-		if i > 0 {
-			n, err = writeTo(w, Separator, n)
-			if err != nil {
-				return
-			}
-		}
-		n, err = writeTo(w, val, n)
-		if err != nil {
-			return
-		}
-	}
-	return
 }
 
 /* Field Definition */
@@ -181,8 +152,6 @@ func (ld lineDef) String() string {
 
 var cpuLineDef = lineDef{"cpu", ParseCpu}
 
-type Cpu []uint
-
 /* << The amount of time, measured in units of USER_HZ
    (1/100ths of a second on most architectures, use
    sysconf(_SC_CLK_TCK) to obtain the right value), that
@@ -209,35 +178,6 @@ func totalCpuCalculator(vals []uint) (total uint) {
 	return
 }
 
-// implement recordPart
-
-func (cpu Cpu) String() string { // implements fmt.Stringer
-	buf := new(bytes.Buffer)
-	cpu.WriteTo(buf)
-	return buf.String()
-}
-func (cpu Cpu) WriteTo(w io.Writer) (n int64, err error) { // implements io.WriterTo
-	for i, val := range cpu {
-		if i > 0 {
-			n, err = writeTo(w, Separator, n)
-			if err != nil {
-				return
-			}
-		}
-		n, err = writeTo(w, val, n)
-		if err != nil {
-			return
-		}
-	}
-	return
-}
-func (cpu Cpu) diff(prevCpu Cpu) Cpu {
-	return Cpu(diffFields(cpuFieldsDefs, cpu, prevCpu))
-}
-
-func makeEmptyCpu() Cpu {
-	return Cpu(make([]uint, len(cpuFieldsDefs)))
-}
 func ParseCpu(def lineDef, line string, targetSlice []uint) (err error) {
 	fields := strings.Fields(line)
 	var val uint
@@ -269,25 +209,8 @@ func ParseCpu(def lineDef, line string, targetSlice []uint) (err error) {
 
 var intrLineDef = lineDef{"intr", ParseInterrupts}
 
-type Interrupts uint
-
 var intrFieldDef = fieldDef{"intr", "total", true, nil}
 
-// implement recordPart
-
-func (intr Interrupts) String() string { // implements fmt.Stringer
-	return fmt.Sprint(uint(intr))
-}
-func (intr Interrupts) WriteTo(w io.Writer) (int64, error) { // implements io.WriterTo
-	return writeTo(w, intr, 0)
-}
-func (intr Interrupts) diff(prevIntr Interrupts) Interrupts {
-	return Interrupts(diffField(intrFieldDef, uint(intr), uint(prevIntr)))
-}
-
-func makeEmptyInterrupts() Interrupts {
-	return *new(Interrupts)
-}
 func ParseInterrupts(def lineDef, line string, targetSlice []uint) (err error) {
 	targetSlice[0], err = parseFirstField(line, def.prefix)
 	return
@@ -297,25 +220,8 @@ func ParseInterrupts(def lineDef, line string, targetSlice []uint) (err error) {
 
 var ctxtLineDef = lineDef{"ctxt", ParseContextSwitches}
 
-type ContextSwitches uint
-
 var ctxtFieldDef = fieldDef{"ctxt", "total", true, nil}
 
-// implement recordPart
-
-func (ctxt ContextSwitches) String() string { // implements fmt.Stringer
-	return fmt.Sprint(uint(ctxt))
-}
-func (ctxt ContextSwitches) WriteTo(w io.Writer) (int64, error) { // implements io.WriterTo
-	return writeTo(w, ctxt, 0)
-}
-func (ctxt ContextSwitches) diff(prevCtxt ContextSwitches) ContextSwitches {
-	return ContextSwitches(diffField(ctxtFieldDef, uint(ctxt), uint(prevCtxt)))
-}
-
-func makeEmptyContextSwitches() ContextSwitches {
-	return *new(ContextSwitches)
-}
 func ParseContextSwitches(def lineDef, line string, targetSlice []uint) (err error) {
 	targetSlice[0], err = parseFirstField(line, def.prefix)
 	return
@@ -327,31 +233,12 @@ var forksLineDef = lineDef{"processes", ParseProcsForks}
 var runningProcsLineDef = lineDef{"procs_running", ParseRunningProcs}
 var blockedProcsLineDef = lineDef{"procs_blocked", ParseBlockedProcs}
 
-type Procs []uint
-
 var procsFieldsDefs = []fieldDef{
 	fieldDef{"procs", "forks", true, nil},
 	fieldDef{"procs", "running", false, nil},
 	fieldDef{"procs", "blocked", false, nil},
 }
 
-// implement recordPart
-
-func (procs Procs) String() string { // implements fmt.Stringer
-	buf := new(bytes.Buffer)
-	procs.WriteTo(buf)
-	return buf.String()
-}
-func (procs Procs) WriteTo(w io.Writer) (n int64, err error) { // implements io.WriterTo
-	return writeManyTo(w, 0, procs[0], procs[1], procs[2])
-}
-func (procs Procs) diff(prevProcs Procs) (diffProcs Procs) {
-	return Procs(diffFields(procsFieldsDefs, procs, prevProcs))
-}
-
-func makeEmptyProcs() Procs {
-	return Procs(make([]uint, len(procsFieldsDefs)))
-}
 func ParseProcsForks(def lineDef, line string, targetSlice []uint) (err error) {
 	targetSlice[0], err = parseFirstField(line, def.prefix)
 	return
