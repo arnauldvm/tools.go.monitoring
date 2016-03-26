@@ -19,23 +19,23 @@ const (
 )
 
 const (
-	procsForksIdx, firstProcsIdx  = iota, iota
-	procsRunningIdx               = iota
-	procsBlockedIdx, lastProcsIdx = iota, iota
-	intrTotalIdx                  = iota
-	ctxtTotalIdx                  = iota
-	cpuTotalIdx                   = iota
-	cpuUserIdx, firstCpuIdx       = iota, iota
-	cpuNiceIdx                    = iota
-	cpuSystemIdx                  = iota
-	cpuidleIdx                    = iota
-	cpuIowaitIdx                  = iota
-	cpuIrqIdx                     = iota
-	cpuSoftIrqIdx                 = iota
-	cpuStealIdx                   = iota
-	cpuGuestIdx                   = iota
-	cpuGuestNiceIdx, lastCpuIdx   = iota, iota
-	fieldsCount                   = iota
+	procsForksIdx               = iota
+	procsRunningIdx             = iota
+	procsBlockedIdx             = iota
+	intrTotalIdx                = iota
+	ctxtTotalIdx                = iota
+	cpuTotalIdx                 = iota
+	cpuUserIdx, firstCpuIdx     = iota, iota
+	cpuNiceIdx                  = iota
+	cpuSystemIdx                = iota
+	cpuidleIdx                  = iota
+	cpuIowaitIdx                = iota
+	cpuIrqIdx                   = iota
+	cpuSoftIrqIdx               = iota
+	cpuStealIdx                 = iota
+	cpuGuestIdx                 = iota
+	cpuGuestNiceIdx, lastCpuIdx = iota, iota
+	fieldsCount                 = iota
 )
 
 /* Header is a list of field names. By convention names ending with "/a"
@@ -71,9 +71,9 @@ func checkPrefix(expected, actual string) error {
 	return fmt.Errorf("Not a '%s' line (found '%s')", expected, actual)
 }
 
-func parseFirstField(line, prefix string) (field uint, err error) {
+func parseFirstField(def lineDef, line string, targetSlice []uint) (err error) {
 	fields := strings.Fields(line)
-	err = checkPrefix(prefix, fields[0])
+	err = checkPrefix(def.prefix, fields[0])
 	if err != nil {
 		return
 	}
@@ -81,7 +81,7 @@ func parseFirstField(line, prefix string) (field uint, err error) {
 	if err != nil {
 		return
 	}
-	field = uint(uint64field)
+	targetSlice[0] = uint(uint64field)
 	return
 }
 
@@ -207,51 +207,26 @@ func ParseCpu(def lineDef, line string, targetSlice []uint) (err error) {
 
 /* Interrupts */
 
-var intrLineDef = lineDef{"intr", ParseInterrupts}
+var intrLineDef = lineDef{"intr", parseFirstField}
 
 var intrFieldDef = fieldDef{"intr", "total", true, nil}
 
-func ParseInterrupts(def lineDef, line string, targetSlice []uint) (err error) {
-	targetSlice[0], err = parseFirstField(line, def.prefix)
-	return
-}
-
 /* Context switches */
 
-var ctxtLineDef = lineDef{"ctxt", ParseContextSwitches}
+var ctxtLineDef = lineDef{"ctxt", parseFirstField}
 
 var ctxtFieldDef = fieldDef{"ctxt", "total", true, nil}
 
-func ParseContextSwitches(def lineDef, line string, targetSlice []uint) (err error) {
-	targetSlice[0], err = parseFirstField(line, def.prefix)
-	return
-}
-
 /* Process/Threads */
 
-var forksLineDef = lineDef{"processes", ParseProcsForks}
-var runningProcsLineDef = lineDef{"procs_running", ParseRunningProcs}
-var blockedProcsLineDef = lineDef{"procs_blocked", ParseBlockedProcs}
+var forksLineDef = lineDef{"processes", parseFirstField}
+var runningProcsLineDef = lineDef{"procs_running", parseFirstField}
+var blockedProcsLineDef = lineDef{"procs_blocked", parseFirstField}
 
 var procsFieldsDefs = []fieldDef{
 	fieldDef{"procs", "forks", true, nil},
 	fieldDef{"procs", "running", false, nil},
 	fieldDef{"procs", "blocked", false, nil},
-}
-
-func ParseProcsForks(def lineDef, line string, targetSlice []uint) (err error) {
-	targetSlice[0], err = parseFirstField(line, def.prefix)
-	return
-}
-
-func ParseRunningProcs(def lineDef, line string, targetSlice []uint) (err error) {
-	targetSlice[1], err = parseFirstField(line, def.prefix)
-	return
-}
-
-func ParseBlockedProcs(def lineDef, line string, targetSlice []uint) (err error) {
-	targetSlice[2], err = parseFirstField(line, def.prefix)
-	return
 }
 
 /* Vmstat record */
@@ -339,8 +314,12 @@ func parseVmstat() (record VmstatRecord, err error) {
 				err = ld.parser(ld, line, record.fields[intrTotalIdx:intrTotalIdx+1])
 			case ctxtLineDef.prefix:
 				err = ld.parser(ld, line, record.fields[ctxtTotalIdx:ctxtTotalIdx+1])
-			case forksLineDef.prefix, runningProcsLineDef.prefix, blockedProcsLineDef.prefix:
-				err = ld.parser(ld, line, record.fields[firstProcsIdx:lastProcsIdx+1])
+			case forksLineDef.prefix:
+				err = ld.parser(ld, line, record.fields[procsForksIdx:procsForksIdx+1])
+			case runningProcsLineDef.prefix:
+				err = ld.parser(ld, line, record.fields[procsRunningIdx:procsRunningIdx+1])
+			case blockedProcsLineDef.prefix:
+				err = ld.parser(ld, line, record.fields[procsBlockedIdx:procsBlockedIdx+1])
 			default:
 				err = fmt.Errorf("Unexpected line def, should not be here")
 			}
