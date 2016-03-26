@@ -104,15 +104,16 @@ func writeManyTo(w io.Writer, p int64, vals ...interface{}) (n int64, err error)
 /* Field Definition */
 
 type fieldDef struct {
-	header        string
+	category      string
+	name          string
 	isAccumulator bool
 }
 
 func (fd fieldDef) String() string { // implements fmt.Stringer
 	if fd.isAccumulator {
-		return fd.header + "/a"
+		return fd.category + ":" + fd.name + "/a"
 	} else {
-		return fd.header + "/i"
+		return fd.category + ":" + fd.name + "/i"
 	}
 }
 
@@ -165,17 +166,17 @@ type Cpu []uint
    the system spent in various states >> */
 
 var cpuFieldsDefs = []fieldDef{
-	fieldDef{"cpu:total", true},
-	fieldDef{"cpu:user", true},
-	fieldDef{"cpu:nice", true},
-	fieldDef{"cpu:system", true},
-	fieldDef{"cpu:idle", true},
-	fieldDef{"cpu:iowait", true},
-	fieldDef{"cpu:irq", true},
-	fieldDef{"cpu:softirq", true},
-	fieldDef{"cpu:steal", true},
-	fieldDef{"cpu:guest", true},
-	fieldDef{"cpu:guest_nice", true},
+	fieldDef{"cpu", "total", true},
+	fieldDef{"cpu", "user", true},
+	fieldDef{"cpu", "nice", true},
+	fieldDef{"cpu", "system", true},
+	fieldDef{"cpu", "idle", true},
+	fieldDef{"cpu", "iowait", true},
+	fieldDef{"cpu", "irq", true},
+	fieldDef{"cpu", "softirq", true},
+	fieldDef{"cpu", "steal", true},
+	fieldDef{"cpu", "guest", true},
+	fieldDef{"cpu", "guest_nice", true},
 }
 
 // implement recordPart
@@ -236,7 +237,7 @@ var intrLineDef = lineDef{"intr", ParseInterrupts}
 
 type Interrupts uint
 
-var intrFieldDef = fieldDef{"intr:total", true}
+var intrFieldDef = fieldDef{"intr", "total", true}
 
 // implement recordPart
 
@@ -264,7 +265,7 @@ var ctxtLineDef = lineDef{"ctxt", ParseContextSwitches}
 
 type ContextSwitches uint
 
-var ctxtFieldDef = fieldDef{"ctxt:total", true}
+var ctxtFieldDef = fieldDef{"ctxt", "total", true}
 
 // implement recordPart
 
@@ -295,9 +296,9 @@ var blockedProcsLineDef = lineDef{"procs_blocked", ParseBlockedProcs}
 type Procs []uint
 
 var procsFieldsDefs = []fieldDef{
-	fieldDef{"procs:forks", true},
-	fieldDef{"procs:running", false},
-	fieldDef{"procs:blocked", false},
+	fieldDef{"procs", "forks", true},
+	fieldDef{"procs", "running", false},
+	fieldDef{"procs", "blocked", false},
 }
 
 // implement recordPart
