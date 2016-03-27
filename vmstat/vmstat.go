@@ -38,6 +38,19 @@ const (
 	fieldsCount                 = iota
 )
 
+var cpuIndices = []uint{
+	cpuUserIdx,
+	cpuNiceIdx,
+	cpuSystemIdx,
+	cpuidleIdx,
+	cpuIowaitIdx,
+	cpuIrqIdx,
+	cpuSoftIrqIdx,
+	cpuStealIdx,
+	cpuGuestIdx,
+	cpuGuestNiceIdx,
+}
+
 /* Header is a list of field names. By convention names ending with "/a"
    are accumulators (ever growing), while names ending with "/i" are instant values. */
 
@@ -80,12 +93,12 @@ func parseLineToFields(def lineDef, line string, targetSlice []uint) (err error)
 		return
 	}
 	var uint64field uint64
-	for i := def.firstFieldIdx; i <= def.lastFieldIdx; i++ {
-		uint64field, err = strconv.ParseUint(fields[i+1-def.firstFieldIdx], 10, 0)
+	for i, j := range def.fieldsIdx {
+		uint64field, err = strconv.ParseUint(fields[i+1], 10, 0)
 		if err != nil {
 			return
 		}
-		targetSlice[i] = uint(uint64field)
+		targetSlice[j] = uint(uint64field)
 	}
 	return
 }
@@ -140,7 +153,7 @@ var allFieldsDefs = []fieldDef{
 }
 
 func totalCpuCalculator(fields []uint) (total uint) {
-	for i := firstCpuIdx; i <= lastCpuIdx; i++ {
+	for _, i := range cpuIndices {
 		total += fields[i]
 	}
 	return
@@ -149,23 +162,23 @@ func totalCpuCalculator(fields []uint) (total uint) {
 /* Line definition */
 
 type lineDef struct {
-	prefix                      string
-	firstFieldIdx, lastFieldIdx uint
+	prefix    string
+	fieldsIdx []uint
 }
 
 var linesDefs = make(map[string]lineDef, 6)
 
-func addLineDef(prefix string, firstFieldIdx, lastFieldIdx uint) {
-	linesDefs[prefix] = lineDef{prefix, firstFieldIdx, lastFieldIdx}
+func addLineDef(prefix string, fieldsIdx ...uint) {
+	linesDefs[prefix] = lineDef{prefix, fieldsIdx}
 }
 
 func init() {
-	addLineDef("cpu", firstCpuIdx, lastCpuIdx)                    // CPU
-	addLineDef("intr", intrTotalIdx, intrTotalIdx)                // Interrupts
-	addLineDef("ctxt", ctxtTotalIdx, ctxtTotalIdx)                // Context switches
-	addLineDef("processes", procsForksIdx, procsForksIdx)         // Process/Threads
-	addLineDef("procs_running", procsRunningIdx, procsRunningIdx) // Process/Threads
-	addLineDef("procs_blocked", procsBlockedIdx, procsBlockedIdx) // Process/Threads
+	addLineDef("cpu", cpuIndices...)             // CPU
+	addLineDef("intr", intrTotalIdx)             // Interrupts
+	addLineDef("ctxt", ctxtTotalIdx)             // Context switches
+	addLineDef("processes", procsForksIdx)       // Process/Threads
+	addLineDef("procs_running", procsRunningIdx) // Process/Threads
+	addLineDef("procs_blocked", procsBlockedIdx) // Process/Threads
 }
 
 /* Vmstat record */
