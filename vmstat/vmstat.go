@@ -190,6 +190,13 @@ type VmstatRecord struct {
 	fields  []uint
 }
 
+func newVmstatRecord(isCumul bool) *VmstatRecord {
+	recordPtr := new(VmstatRecord)
+	recordPtr.isCumul = isCumul
+	recordPtr.fields = make([]uint, fieldsCount)
+	return recordPtr
+}
+
 func (record VmstatRecord) String() string { // implements fmt.Stringer
 	buf := new(bytes.Buffer)
 	record.WriteTo(buf)
@@ -229,13 +236,15 @@ func (record VmstatRecord) diff(prevRecord VmstatRecord) (diffRecord VmstatRecor
 	return
 }
 
-func parseVmstat() (record VmstatRecord, err error) {
+func parseVmstat(record VmstatRecord) (err error) {
 	inFile, err := os.Open(procStat)
 	if err != nil {
 		return
 	}
 	defer inFile.Close()
-	record = VmstatRecord{false, make([]uint, fieldsCount)}
+	for i, _ := range record.fields {
+		record.fields[i] = 0
+	}
 	scanner := bufio.NewScanner(inFile)
 	for j := 0; scanner.Scan(); j++ {
 		line := scanner.Text()
@@ -257,7 +266,6 @@ func parseVmstat() (record VmstatRecord, err error) {
 			record.fields[i] = fd.calculator(record.fields)
 		}
 	}
-	record.isCumul = true
 	return
 }
 
@@ -267,25 +275,25 @@ func parseVmstat() (record VmstatRecord, err error) {
 // If cumul is false, it prints the diff of the accumulators, instead of the accumulators themselves
 func Poll(period time.Duration, duration time.Duration, cumul bool, cout chan VmstatRecord) {
 	startTime := time.Now()
-	var oldRecord VmstatRecord
+	recordPtr, oldRecordPtr := newVmstatRecord(true), newVmstatRecord(true)
 	for i := 0; (0 == duration) || (time.Since(startTime) <= duration); i++ {
 		if i > 0 {
 			time.Sleep(period)
 		}
-		record, err := parseVmstat()
+		err := parseVmstat(*recordPtr)
 		if err != nil {
 			log.Println(err)
 			continue
 		}
 		if cumul {
-			cout <- record
+			cout <- *recordPtr
 		} else {
 			if i < 1 {
-				cout <- record
+				cout <- *recordPtr
 			} else {
-				cout <- record.diff(oldRecord)
+				cout <- recordPtr.diff(*oldRecordPtr)
 			}
-			oldRecord = record
+			oldRecordPtr, recordPtr = recordPtr, oldRecordPtr
 		}
 	}
 	close(cout)
