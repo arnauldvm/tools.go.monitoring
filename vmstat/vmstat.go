@@ -197,9 +197,9 @@ func newVmstatRecord(isCumul bool) *VmstatRecord {
 	return recordPtr
 }
 
-func (record VmstatRecord) String() string { // implements fmt.Stringer
+func (recordPtr *VmstatRecord) String() string { // implements fmt.Stringer
 	buf := new(bytes.Buffer)
-	record.WriteTo(buf)
+	recordPtr.WriteTo(buf)
 	return buf.String()
 }
 func (record VmstatRecord) WriteTo(w io.Writer) (n int64, err error) { // implements io.WriterTo
@@ -223,8 +223,8 @@ func (record VmstatRecord) WriteTo(w io.Writer) (n int64, err error) { // implem
 	}
 	return
 }
-func (record VmstatRecord) diff(prevRecord, diffRecord *VmstatRecord) {
-	for i, field := range record.fields {
+func (recordPtr *VmstatRecord) diff(prevRecord, diffRecord *VmstatRecord) {
+	for i, field := range recordPtr.fields {
 		if allFieldsDefs[i].isAccumulator {
 			diffRecord.fields[i] = field - prevRecord.fields[i]
 		} else {
@@ -234,7 +234,7 @@ func (record VmstatRecord) diff(prevRecord, diffRecord *VmstatRecord) {
 	return
 }
 
-func parseVmstat(recordPtr *VmstatRecord) (err error) {
+func (recordPtr *VmstatRecord) parseVmstat() (err error) {
 	inFile, err := os.Open(procStat)
 	if err != nil {
 		return
@@ -280,7 +280,7 @@ func Poll(period time.Duration, duration time.Duration, cumul bool, cout chan Vm
 		if i > 0 {
 			time.Sleep(period)
 		}
-		err := parseVmstat(recordPtr)
+		err := recordPtr.parseVmstat()
 		if err != nil {
 			log.Println(err)
 			continue
