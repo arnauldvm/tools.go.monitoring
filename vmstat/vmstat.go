@@ -172,10 +172,8 @@ func init() {
 
 var VmstatHeader = makeHeader(allFieldsDefs)
 
-type cumulFlag bool
-
 type VmstatRecord struct {
-	isCumul cumulFlag
+	isCumul bool
 	fields  []uint
 }
 
@@ -206,7 +204,7 @@ func (record VmstatRecord) WriteTo(w io.Writer) (n int64, err error) { // implem
 	return
 }
 func (record VmstatRecord) diff(prevRecord VmstatRecord) (diffRecord VmstatRecord) {
-	diffRecord.isCumul = cumulFlag(false)
+	diffRecord.isCumul = false
 	diffRecord.fields = make([]uint, len(record.fields))
 	for i, field := range record.fields {
 		if allFieldsDefs[i].isAccumulator {
