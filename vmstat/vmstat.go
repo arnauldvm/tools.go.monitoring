@@ -43,17 +43,18 @@ const (
 
 type Header []string
 
-func (h Header) String() string { // implements fmt.Stringer
-	buf := new(bytes.Buffer)
-	h.WriteTo(buf)
-	return buf.String()
+func makeHeader(fdl []fieldDef) Header {
+	h := Header(make([]string, 1+len(fdl)))
+	h[0] = "a/d"
+	for i, d := range fdl {
+		h[i+1] = d.String()
+	}
+	return h
 }
+
 func (h Header) WriteTo(w io.Writer) (n int64, err error) { // implements io.WriterTo
 	err = writeTo(w, strings.Join(h, Separator), &n)
 	return
-}
-func (h Header) append(k Header) Header {
-	return Header(append(h, k...))
 }
 
 var procStat string = defaultProcStat
@@ -111,17 +112,6 @@ func (fd fieldDef) String() string { // implements fmt.Stringer
 	} else {
 		return fd.category + ":" + fd.name + "/i"
 	}
-}
-
-func defToHeader(def fieldDef) Header {
-	return Header([]string{def.String()})
-}
-func defsToHeader(defs []fieldDef) Header {
-	h := Header(make([]string, len(defs)))
-	for i, d := range defs {
-		h[i] = d.String()
-	}
-	return h
 }
 
 /* Line definition */
@@ -215,11 +205,7 @@ var procsFieldsDefs = []fieldDef{
 
 var allFieldsDefs []fieldDef = append(append(append(append(make([]fieldDef, 0, fieldsCount), procsFieldsDefs...), intrFieldDef), ctxtFieldDef), cpuFieldsDefs...)
 
-var VmstatHeader = Header([]string{"a/d"}).
-	append(defsToHeader(procsFieldsDefs)).
-	append(defToHeader(intrFieldDef)).
-	append(defToHeader(ctxtFieldDef)).
-	append(defsToHeader(cpuFieldsDefs))
+var VmstatHeader = makeHeader(allFieldsDefs)
 
 var linesDefs = map[string]lineDef{
 	cpuLineDef.prefix:          cpuLineDef,
