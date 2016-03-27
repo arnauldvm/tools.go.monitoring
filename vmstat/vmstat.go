@@ -45,7 +45,7 @@ type Header []string
 
 func makeHeader(fdl []fieldDef) Header {
 	h := Header(make([]string, 1+len(fdl)))
-	h[0] = "a/d"
+	h[0] = "h"
 	for i, d := range fdl {
 		h[i+1] = d.String()
 	}
