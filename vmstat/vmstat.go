@@ -153,10 +153,6 @@ type lineDef struct {
 	firstFieldIdx, lastFieldIdx uint
 }
 
-func (ld lineDef) String() string {
-	return ld.prefix
-}
-
 var linesDefs = make(map[string]lineDef, 6)
 
 func addLineDef(prefix string, firstFieldIdx, lastFieldIdx uint) {
