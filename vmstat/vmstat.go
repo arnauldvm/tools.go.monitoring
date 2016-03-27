@@ -236,14 +236,14 @@ func (record VmstatRecord) diff(prevRecord VmstatRecord) (diffRecord VmstatRecor
 	return
 }
 
-func parseVmstat(record VmstatRecord) (err error) {
+func parseVmstat(recordPtr *VmstatRecord) (err error) {
 	inFile, err := os.Open(procStat)
 	if err != nil {
 		return
 	}
 	defer inFile.Close()
-	for i, _ := range record.fields {
-		record.fields[i] = 0
+	for i, _ := range recordPtr.fields {
+		recordPtr.fields[i] = 0
 	}
 	scanner := bufio.NewScanner(inFile)
 	for j := 0; scanner.Scan(); j++ {
@@ -251,7 +251,7 @@ func parseVmstat(record VmstatRecord) (err error) {
 		linePrefix := strings.SplitN(line, " ", 2)[0]
 		ld, ok := linesDefs[linePrefix]
 		if ok {
-			err = parseLineToFields(ld, line, record.fields)
+			err = parseLineToFields(ld, line, recordPtr.fields)
 			if err != nil {
 				return
 			}
@@ -263,7 +263,7 @@ func parseVmstat(record VmstatRecord) (err error) {
 	}
 	for i, fd := range allFieldsDefs {
 		if fd.calculator != nil {
-			record.fields[i] = fd.calculator(record.fields)
+			recordPtr.fields[i] = fd.calculator(recordPtr.fields)
 		}
 	}
 	return
@@ -280,7 +280,7 @@ func Poll(period time.Duration, duration time.Duration, cumul bool, cout chan Vm
 		if i > 0 {
 			time.Sleep(period)
 		}
-		err := parseVmstat(*recordPtr)
+		err := parseVmstat(recordPtr)
 		if err != nil {
 			log.Println(err)
 			continue
