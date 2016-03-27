@@ -38,6 +38,10 @@ const (
 	fieldsCount                 = iota
 )
 
+/* << The amount of time, measured in units of USER_HZ
+   (1/100ths of a second on most architectures, use
+   sysconf(_SC_CLK_TCK) to obtain the right value), that
+   the system spent in various states >> */
 var cpuIndices = []uint{
 	cpuUserIdx,
 	cpuNiceIdx,
@@ -51,8 +55,42 @@ var cpuIndices = []uint{
 	cpuGuestNiceIdx,
 }
 
-/* Header is a list of field names. By convention names ending with "/a"
-   are accumulators (ever growing), while names ending with "/i" are instant values. */
+var allFieldsDefs = []fieldDef{
+	fieldDef{"procs", "forks", true, nil},
+	fieldDef{"procs", "running", false, nil},
+	fieldDef{"procs", "blocked", false, nil},
+	fieldDef{"intr", "total", true, nil},
+	fieldDef{"ctxt", "total", true, nil},
+	fieldDef{"cpu", "total", true, totalCpuCalculator},
+	fieldDef{"cpu", "user", true, nil},
+	fieldDef{"cpu", "nice", true, nil},
+	fieldDef{"cpu", "system", true, nil},
+	fieldDef{"cpu", "idle", true, nil},
+	fieldDef{"cpu", "iowait", true, nil},
+	fieldDef{"cpu", "irq", true, nil},
+	fieldDef{"cpu", "softirq", true, nil},
+	fieldDef{"cpu", "steal", true, nil},
+	fieldDef{"cpu", "guest", true, nil},
+	fieldDef{"cpu", "guest_nice", true, nil},
+}
+
+func totalCpuCalculator(fields []uint) (total uint) {
+	for _, i := range cpuIndices {
+		total += fields[i]
+	}
+	return
+}
+
+func init() {
+	addLineDef("cpu", cpuIndices...)             // CPU
+	addLineDef("intr", intrTotalIdx)             // Interrupts
+	addLineDef("ctxt", ctxtTotalIdx)             // Context switches
+	addLineDef("processes", procsForksIdx)       // Process/Threads
+	addLineDef("procs_running", procsRunningIdx) // Process/Threads
+	addLineDef("procs_blocked", procsBlockedIdx) // Process/Threads
+}
+
+/* Header is a list of field names. */
 
 type header []string
 
@@ -128,37 +166,6 @@ func (fd fieldDef) String() string { // implements fmt.Stringer
 	}
 }
 
-/* << The amount of time, measured in units of USER_HZ
-   (1/100ths of a second on most architectures, use
-   sysconf(_SC_CLK_TCK) to obtain the right value), that
-   the system spent in various states >> */
-
-var allFieldsDefs = []fieldDef{
-	fieldDef{"procs", "forks", true, nil},
-	fieldDef{"procs", "running", false, nil},
-	fieldDef{"procs", "blocked", false, nil},
-	fieldDef{"intr", "total", true, nil},
-	fieldDef{"ctxt", "total", true, nil},
-	fieldDef{"cpu", "total", true, totalCpuCalculator},
-	fieldDef{"cpu", "user", true, nil},
-	fieldDef{"cpu", "nice", true, nil},
-	fieldDef{"cpu", "system", true, nil},
-	fieldDef{"cpu", "idle", true, nil},
-	fieldDef{"cpu", "iowait", true, nil},
-	fieldDef{"cpu", "irq", true, nil},
-	fieldDef{"cpu", "softirq", true, nil},
-	fieldDef{"cpu", "steal", true, nil},
-	fieldDef{"cpu", "guest", true, nil},
-	fieldDef{"cpu", "guest_nice", true, nil},
-}
-
-func totalCpuCalculator(fields []uint) (total uint) {
-	for _, i := range cpuIndices {
-		total += fields[i]
-	}
-	return
-}
-
 /* Line definition */
 
 type lineDef struct {
@@ -170,15 +177,6 @@ var linesDefs = make(map[string]lineDef, 6)
 
 func addLineDef(prefix string, fieldsIdx ...uint) {
 	linesDefs[prefix] = lineDef{prefix, fieldsIdx}
-}
-
-func init() {
-	addLineDef("cpu", cpuIndices...)             // CPU
-	addLineDef("intr", intrTotalIdx)             // Interrupts
-	addLineDef("ctxt", ctxtTotalIdx)             // Context switches
-	addLineDef("processes", procsForksIdx)       // Process/Threads
-	addLineDef("procs_running", procsRunningIdx) // Process/Threads
-	addLineDef("procs_blocked", procsBlockedIdx) // Process/Threads
 }
 
 /* Vmstat record */
