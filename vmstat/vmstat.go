@@ -223,9 +223,7 @@ func (record VmstatRecord) WriteTo(w io.Writer) (n int64, err error) { // implem
 	}
 	return
 }
-func (record VmstatRecord) diff(prevRecord VmstatRecord) (diffRecord VmstatRecord) {
-	diffRecord.isCumul = false
-	diffRecord.fields = make([]uint, len(record.fields))
+func (record VmstatRecord) diff(prevRecord, diffRecord *VmstatRecord) {
 	for i, field := range record.fields {
 		if allFieldsDefs[i].isAccumulator {
 			diffRecord.fields[i] = field - prevRecord.fields[i]
@@ -275,7 +273,9 @@ func parseVmstat(recordPtr *VmstatRecord) (err error) {
 // If cumul is false, it prints the diff of the accumulators, instead of the accumulators themselves
 func Poll(period time.Duration, duration time.Duration, cumul bool, cout chan VmstatRecord) {
 	startTime := time.Now()
-	recordPtr, oldRecordPtr := newVmstatRecord(true), newVmstatRecord(true)
+	recordPtr := newVmstatRecord(true)
+	oldRecordPtr := newVmstatRecord(true)
+	diffRecordPtr := newVmstatRecord(false)
 	for i := 0; (0 == duration) || (time.Since(startTime) <= duration); i++ {
 		if i > 0 {
 			time.Sleep(period)
@@ -291,7 +291,8 @@ func Poll(period time.Duration, duration time.Duration, cumul bool, cout chan Vm
 			if i < 1 {
 				cout <- *recordPtr
 			} else {
-				cout <- recordPtr.diff(*oldRecordPtr)
+				recordPtr.diff(oldRecordPtr, diffRecordPtr)
+				cout <- *diffRecordPtr
 			}
 			oldRecordPtr, recordPtr = recordPtr, oldRecordPtr
 		}
