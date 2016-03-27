@@ -235,19 +235,13 @@ func (record VmstatRecord) diff(prevRecord VmstatRecord) (diffRecord VmstatRecor
 	return
 }
 
-func makeEmptyVmstatRecord() VmstatRecord {
-	return VmstatRecord{
-		false,
-		make([]uint, fieldsCount),
-	}
-}
 func parseVmstat() (record VmstatRecord, err error) {
 	inFile, err := os.Open(procStat)
 	if err != nil {
 		return
 	}
 	defer inFile.Close()
-	record = makeEmptyVmstatRecord()
+	record = VmstatRecord{false, make([]uint, fieldsCount)}
 	scanner := bufio.NewScanner(inFile)
 	for j := 0; scanner.Scan(); j++ {
 		line := scanner.Text()
