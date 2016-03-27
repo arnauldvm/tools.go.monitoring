@@ -36,12 +36,12 @@ func main() {
 		flag.PrintDefaults()
 		return
 	}
-	cout := make(chan vmstat.VmstatRecord)
+	cout := make(chan vmstat.Record)
 	go vmstat.Poll(*periodPtr, *durationPtr, *cumulPtr, cout)
 	if *timePtr {
 		fmt.Print("time", vmstat.Separator)
 	}
-	printLine(vmstat.VmstatHeader)
+	printLine(vmstat.Header)
 	for dat := range cout {
 		if *timePtr {
 			fmt.Print(time.Now().Format(RFC3339Millis), vmstat.Separator)

@@ -54,10 +54,10 @@ var cpuIndices = []uint{
 /* Header is a list of field names. By convention names ending with "/a"
    are accumulators (ever growing), while names ending with "/i" are instant values. */
 
-type Header []string
+type header []string
 
-func makeHeader(fdl []fieldDef) Header {
-	h := Header(make([]string, 1+len(fdl)))
+func makeHeader(fdl []fieldDef) header {
+	h := header(make([]string, 1+len(fdl)))
 	h[0] = "h"
 	for i, d := range fdl {
 		h[i+1] = d.String()
@@ -65,7 +65,7 @@ func makeHeader(fdl []fieldDef) Header {
 	return h
 }
 
-func (h Header) WriteTo(w io.Writer) (n int64, err error) { // implements io.WriterTo
+func (h header) WriteTo(w io.Writer) (n int64, err error) { // implements io.WriterTo
 	err = writeTo(w, strings.Join(h, Separator), &n)
 	return
 }
@@ -183,26 +183,26 @@ func init() {
 
 /* Vmstat record */
 
-var VmstatHeader = makeHeader(allFieldsDefs)
+var Header = makeHeader(allFieldsDefs)
 
-type VmstatRecord struct {
+type Record struct {
 	isCumul bool
 	fields  []uint
 }
 
-func newVmstatRecord(isCumul bool) *VmstatRecord {
-	recordPtr := new(VmstatRecord)
+func newRecord(isCumul bool) *Record {
+	recordPtr := new(Record)
 	recordPtr.isCumul = isCumul
 	recordPtr.fields = make([]uint, fieldsCount)
 	return recordPtr
 }
 
-func (recordPtr *VmstatRecord) String() string { // implements fmt.Stringer
+func (recordPtr *Record) String() string { // implements fmt.Stringer
 	buf := new(bytes.Buffer)
 	recordPtr.WriteTo(buf)
 	return buf.String()
 }
-func (record VmstatRecord) WriteTo(w io.Writer) (n int64, err error) { // implements io.WriterTo
+func (record Record) WriteTo(w io.Writer) (n int64, err error) { // implements io.WriterTo
 	if record.isCumul {
 		err = writeTo(w, "a", &n)
 	} else {
@@ -223,7 +223,7 @@ func (record VmstatRecord) WriteTo(w io.Writer) (n int64, err error) { // implem
 	}
 	return
 }
-func (recordPtr *VmstatRecord) diff(prevRecord, diffRecord *VmstatRecord) {
+func (recordPtr *Record) diff(prevRecord, diffRecord *Record) {
 	for i, field := range recordPtr.fields {
 		if allFieldsDefs[i].isAccumulator {
 			diffRecord.fields[i] = field - prevRecord.fields[i]
@@ -234,7 +234,7 @@ func (recordPtr *VmstatRecord) diff(prevRecord, diffRecord *VmstatRecord) {
 	return
 }
 
-func (recordPtr *VmstatRecord) parseVmstat() (err error) {
+func (recordPtr *Record) parse() (err error) {
 	inFile, err := os.Open(procStat)
 	if err != nil {
 		return
@@ -269,18 +269,18 @@ func (recordPtr *VmstatRecord) parseVmstat() (err error) {
 
 /* Polling */
 
-// Poll sends a VmstatLine in the channel every period until duration.
+// Poll sends a Record in the channel every period until duration.
 // If cumul is false, it prints the diff of the accumulators, instead of the accumulators themselves
-func Poll(period time.Duration, duration time.Duration, cumul bool, cout chan VmstatRecord) {
+func Poll(period time.Duration, duration time.Duration, cumul bool, cout chan Record) {
 	startTime := time.Now()
-	recordPtr := newVmstatRecord(true)
-	oldRecordPtr := newVmstatRecord(true)
-	diffRecordPtr := newVmstatRecord(false)
+	recordPtr := newRecord(true)
+	oldRecordPtr := newRecord(true)
+	diffRecordPtr := newRecord(false)
 	for i := 0; (0 == duration) || (time.Since(startTime) <= duration); i++ {
 		if i > 0 {
 			time.Sleep(period)
 		}
-		err := recordPtr.parseVmstat()
+		err := recordPtr.parse()
 		if err != nil {
 			log.Println(err)
 			continue
