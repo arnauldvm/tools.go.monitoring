@@ -174,14 +174,6 @@ var VmstatHeader = makeHeader(allFieldsDefs)
 
 type cumulFlag bool
 
-func (c cumulFlag) String() string {
-	if c {
-		return "a"
-	} else {
-		return "d"
-	}
-}
-
 type VmstatRecord struct {
 	isCumul cumulFlag
 	fields  []uint
@@ -193,7 +185,11 @@ func (record VmstatRecord) String() string { // implements fmt.Stringer
 	return buf.String()
 }
 func (record VmstatRecord) WriteTo(w io.Writer) (n int64, err error) { // implements io.WriterTo
-	err = writeTo(w, record.isCumul, &n)
+	if record.isCumul {
+		err = writeTo(w, "a", &n)
+	} else {
+		err = writeTo(w, "d", &n)
+	}
 	for _, field := range record.fields {
 		err = writeTo(w, Separator, &n)
 		if err != nil {
