@@ -80,8 +80,8 @@ func parseLineToFields(def lineDef, line string, targetSlice []uint) (err error)
 		return
 	}
 	var uint64field uint64
-	for i, _ := range targetSlice {
-		uint64field, err = strconv.ParseUint(fields[i+1], 10, 0)
+	for i := def.firstFieldIdx; i <= def.lastFieldIdx; i++ {
+		uint64field, err = strconv.ParseUint(fields[i+1-def.firstFieldIdx], 10, 0)
 		if err != nil {
 			return
 		}
@@ -118,7 +118,8 @@ func (fd fieldDef) String() string { // implements fmt.Stringer
 /* Line definition */
 
 type lineDef struct {
-	prefix string
+	prefix                      string
+	firstFieldIdx, lastFieldIdx uint
 }
 
 func (ld lineDef) String() string {
@@ -127,7 +128,7 @@ func (ld lineDef) String() string {
 
 /* CPU */
 
-var cpuLineDef = lineDef{"cpu"}
+var cpuLineDef = lineDef{"cpu", firstCpuIdx, lastCpuIdx}
 
 /* << The amount of time, measured in units of USER_HZ
    (1/100ths of a second on most architectures, use
@@ -157,21 +158,21 @@ func totalCpuCalculator(fields []uint) (total uint) {
 
 /* Interrupts */
 
-var intrLineDef = lineDef{"intr"}
+var intrLineDef = lineDef{"intr", intrTotalIdx, intrTotalIdx}
 
 var intrFieldDef = fieldDef{"intr", "total", true, nil}
 
 /* Context switches */
 
-var ctxtLineDef = lineDef{"ctxt"}
+var ctxtLineDef = lineDef{"ctxt", ctxtTotalIdx, ctxtTotalIdx}
 
 var ctxtFieldDef = fieldDef{"ctxt", "total", true, nil}
 
 /* Process/Threads */
 
-var forksLineDef = lineDef{"processes"}
-var runningProcsLineDef = lineDef{"procs_running"}
-var blockedProcsLineDef = lineDef{"procs_blocked"}
+var forksLineDef = lineDef{"processes", procsForksIdx, procsForksIdx}
+var runningProcsLineDef = lineDef{"procs_running", procsRunningIdx, procsRunningIdx}
+var blockedProcsLineDef = lineDef{"procs_blocked", procsBlockedIdx, procsBlockedIdx}
 
 var procsFieldsDefs = []fieldDef{
 	fieldDef{"procs", "forks", true, nil},
@@ -260,22 +261,7 @@ func parseVmstat() (record VmstatRecord, err error) {
 		linePrefix := strings.SplitN(line, " ", 2)[0]
 		ld, ok := linesDefs[linePrefix]
 		if ok {
-			switch ld.prefix {
-			case cpuLineDef.prefix:
-				err = parseLineToFields(ld, line, record.fields[firstCpuIdx:lastCpuIdx+1])
-			case intrLineDef.prefix:
-				err = parseLineToFields(ld, line, record.fields[intrTotalIdx:intrTotalIdx+1])
-			case ctxtLineDef.prefix:
-				err = parseLineToFields(ld, line, record.fields[ctxtTotalIdx:ctxtTotalIdx+1])
-			case forksLineDef.prefix:
-				err = parseLineToFields(ld, line, record.fields[procsForksIdx:procsForksIdx+1])
-			case runningProcsLineDef.prefix:
-				err = parseLineToFields(ld, line, record.fields[procsRunningIdx:procsRunningIdx+1])
-			case blockedProcsLineDef.prefix:
-				err = parseLineToFields(ld, line, record.fields[procsBlockedIdx:procsBlockedIdx+1])
-			default:
-				err = fmt.Errorf("Unexpected line def, should not be here")
-			}
+			err = parseLineToFields(ld, line, record.fields)
 			if err != nil {
 				return
 			}
