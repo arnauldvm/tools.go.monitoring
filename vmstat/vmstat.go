@@ -73,21 +73,22 @@ func checkPrefix(expected, actual string) error {
 	return fmt.Errorf("Not a '%s' line (found '%s')", expected, actual)
 }
 
-func parseFirstField(def lineDef, line string, targetSlice []uint) (err error) {
+func parseLineToFields(def lineDef, line string, targetSlice []uint) (err error) {
 	fields := strings.Fields(line)
 	err = checkPrefix(def.prefix, fields[0])
 	if err != nil {
 		return
 	}
-	uint64field, err := strconv.ParseUint(fields[1], 10, 0)
-	if err != nil {
-		return
+	var uint64field uint64
+	for i, _ := range targetSlice {
+		uint64field, err = strconv.ParseUint(fields[i+1], 10, 0)
+		if err != nil {
+			return
+		}
+		targetSlice[i] = uint(uint64field)
 	}
-	targetSlice[0] = uint(uint64field)
 	return
 }
-
-type parserFunction func(def lineDef, line string, targetSlice []uint) error
 
 func writeTo(w io.Writer, v interface{}, p *int64) (err error) {
 	m, err := w.Write([]byte(fmt.Sprint(v)))
@@ -118,7 +119,6 @@ func (fd fieldDef) String() string { // implements fmt.Stringer
 
 type lineDef struct {
 	prefix string
-	parser parserFunction
 }
 
 func (ld lineDef) String() string {
@@ -127,7 +127,7 @@ func (ld lineDef) String() string {
 
 /* CPU */
 
-var cpuLineDef = lineDef{"cpu", ParseCpu}
+var cpuLineDef = lineDef{"cpu"}
 
 /* << The amount of time, measured in units of USER_HZ
    (1/100ths of a second on most architectures, use
@@ -155,45 +155,23 @@ func totalCpuCalculator(fields []uint) (total uint) {
 	return
 }
 
-func ParseCpu(def lineDef, line string, targetSlice []uint) (err error) {
-	fields := strings.Fields(line)
-	var val uint
-	for i, f := range fields {
-		if i == 0 {
-			err = checkPrefix(def.prefix, f)
-			if err != nil {
-				return
-			}
-			continue
-		}
-		var uint64field uint64
-		uint64field, err = strconv.ParseUint(f, 10, 0)
-		if err != nil {
-			return
-		}
-		val = uint(uint64field)
-		targetSlice[i-1+1] = val
-	}
-	return
-}
-
 /* Interrupts */
 
-var intrLineDef = lineDef{"intr", parseFirstField}
+var intrLineDef = lineDef{"intr"}
 
 var intrFieldDef = fieldDef{"intr", "total", true, nil}
 
 /* Context switches */
 
-var ctxtLineDef = lineDef{"ctxt", parseFirstField}
+var ctxtLineDef = lineDef{"ctxt"}
 
 var ctxtFieldDef = fieldDef{"ctxt", "total", true, nil}
 
 /* Process/Threads */
 
-var forksLineDef = lineDef{"processes", parseFirstField}
-var runningProcsLineDef = lineDef{"procs_running", parseFirstField}
-var blockedProcsLineDef = lineDef{"procs_blocked", parseFirstField}
+var forksLineDef = lineDef{"processes"}
+var runningProcsLineDef = lineDef{"procs_running"}
+var blockedProcsLineDef = lineDef{"procs_blocked"}
 
 var procsFieldsDefs = []fieldDef{
 	fieldDef{"procs", "forks", true, nil},
@@ -284,17 +262,17 @@ func parseVmstat() (record VmstatRecord, err error) {
 		if ok {
 			switch ld.prefix {
 			case cpuLineDef.prefix:
-				err = ld.parser(ld, line, record.fields[firstCpuIdx-1:lastCpuIdx+1])
+				err = parseLineToFields(ld, line, record.fields[firstCpuIdx:lastCpuIdx+1])
 			case intrLineDef.prefix:
-				err = ld.parser(ld, line, record.fields[intrTotalIdx:intrTotalIdx+1])
+				err = parseLineToFields(ld, line, record.fields[intrTotalIdx:intrTotalIdx+1])
 			case ctxtLineDef.prefix:
-				err = ld.parser(ld, line, record.fields[ctxtTotalIdx:ctxtTotalIdx+1])
+				err = parseLineToFields(ld, line, record.fields[ctxtTotalIdx:ctxtTotalIdx+1])
 			case forksLineDef.prefix:
-				err = ld.parser(ld, line, record.fields[procsForksIdx:procsForksIdx+1])
+				err = parseLineToFields(ld, line, record.fields[procsForksIdx:procsForksIdx+1])
 			case runningProcsLineDef.prefix:
-				err = ld.parser(ld, line, record.fields[procsRunningIdx:procsRunningIdx+1])
+				err = parseLineToFields(ld, line, record.fields[procsRunningIdx:procsRunningIdx+1])
 			case blockedProcsLineDef.prefix:
-				err = ld.parser(ld, line, record.fields[procsBlockedIdx:procsBlockedIdx+1])
+				err = parseLineToFields(ld, line, record.fields[procsBlockedIdx:procsBlockedIdx+1])
 			default:
 				err = fmt.Errorf("Unexpected line def, should not be here")
 			}
