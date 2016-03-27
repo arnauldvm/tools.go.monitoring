@@ -190,6 +190,9 @@ func (record VmstatRecord) WriteTo(w io.Writer) (n int64, err error) { // implem
 	} else {
 		err = writeTo(w, "d", &n)
 	}
+	if err != nil {
+		return
+	}
 	for _, field := range record.fields {
 		err = writeTo(w, Separator, &n)
 		if err != nil {
