@@ -157,36 +157,24 @@ func (ld lineDef) String() string {
 	return ld.prefix
 }
 
-/* CPU */
+var linesDefs = make(map[string]lineDef, 6)
 
-var cpuLineDef = lineDef{"cpu", firstCpuIdx, lastCpuIdx}
+func addLineDef(prefix string, firstFieldIdx, lastFieldIdx uint) {
+	linesDefs[prefix] = lineDef{prefix, firstFieldIdx, lastFieldIdx}
+}
 
-/* Interrupts */
-
-var intrLineDef = lineDef{"intr", intrTotalIdx, intrTotalIdx}
-
-/* Context switches */
-
-var ctxtLineDef = lineDef{"ctxt", ctxtTotalIdx, ctxtTotalIdx}
-
-/* Process/Threads */
-
-var forksLineDef = lineDef{"processes", procsForksIdx, procsForksIdx}
-var runningProcsLineDef = lineDef{"procs_running", procsRunningIdx, procsRunningIdx}
-var blockedProcsLineDef = lineDef{"procs_blocked", procsBlockedIdx, procsBlockedIdx}
+func init() {
+	addLineDef("cpu", firstCpuIdx, lastCpuIdx)                    // CPU
+	addLineDef("intr", intrTotalIdx, intrTotalIdx)                // Interrupts
+	addLineDef("ctxt", ctxtTotalIdx, ctxtTotalIdx)                // Context switches
+	addLineDef("processes", procsForksIdx, procsForksIdx)         // Process/Threads
+	addLineDef("procs_running", procsRunningIdx, procsRunningIdx) // Process/Threads
+	addLineDef("procs_blocked", procsBlockedIdx, procsBlockedIdx) // Process/Threads
+}
 
 /* Vmstat record */
 
 var VmstatHeader = makeHeader(allFieldsDefs)
-
-var linesDefs = map[string]lineDef{
-	cpuLineDef.prefix:          cpuLineDef,
-	intrLineDef.prefix:         intrLineDef,
-	ctxtLineDef.prefix:         ctxtLineDef,
-	forksLineDef.prefix:        forksLineDef,
-	runningProcsLineDef.prefix: runningProcsLineDef,
-	blockedProcsLineDef.prefix: blockedProcsLineDef,
-}
 
 type cumulFlag bool
 
