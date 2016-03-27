@@ -115,27 +115,17 @@ func (fd fieldDef) String() string { // implements fmt.Stringer
 	}
 }
 
-/* Line definition */
-
-type lineDef struct {
-	prefix                      string
-	firstFieldIdx, lastFieldIdx uint
-}
-
-func (ld lineDef) String() string {
-	return ld.prefix
-}
-
-/* CPU */
-
-var cpuLineDef = lineDef{"cpu", firstCpuIdx, lastCpuIdx}
-
 /* << The amount of time, measured in units of USER_HZ
    (1/100ths of a second on most architectures, use
    sysconf(_SC_CLK_TCK) to obtain the right value), that
    the system spent in various states >> */
 
-var cpuFieldsDefs = []fieldDef{
+var allFieldsDefs = []fieldDef{
+	fieldDef{"procs", "forks", true, nil},
+	fieldDef{"procs", "running", false, nil},
+	fieldDef{"procs", "blocked", false, nil},
+	fieldDef{"intr", "total", true, nil},
+	fieldDef{"ctxt", "total", true, nil},
 	fieldDef{"cpu", "total", true, totalCpuCalculator},
 	fieldDef{"cpu", "user", true, nil},
 	fieldDef{"cpu", "nice", true, nil},
@@ -156,17 +146,28 @@ func totalCpuCalculator(fields []uint) (total uint) {
 	return
 }
 
+/* Line definition */
+
+type lineDef struct {
+	prefix                      string
+	firstFieldIdx, lastFieldIdx uint
+}
+
+func (ld lineDef) String() string {
+	return ld.prefix
+}
+
+/* CPU */
+
+var cpuLineDef = lineDef{"cpu", firstCpuIdx, lastCpuIdx}
+
 /* Interrupts */
 
 var intrLineDef = lineDef{"intr", intrTotalIdx, intrTotalIdx}
 
-var intrFieldDef = fieldDef{"intr", "total", true, nil}
-
 /* Context switches */
 
 var ctxtLineDef = lineDef{"ctxt", ctxtTotalIdx, ctxtTotalIdx}
-
-var ctxtFieldDef = fieldDef{"ctxt", "total", true, nil}
 
 /* Process/Threads */
 
@@ -174,15 +175,7 @@ var forksLineDef = lineDef{"processes", procsForksIdx, procsForksIdx}
 var runningProcsLineDef = lineDef{"procs_running", procsRunningIdx, procsRunningIdx}
 var blockedProcsLineDef = lineDef{"procs_blocked", procsBlockedIdx, procsBlockedIdx}
 
-var procsFieldsDefs = []fieldDef{
-	fieldDef{"procs", "forks", true, nil},
-	fieldDef{"procs", "running", false, nil},
-	fieldDef{"procs", "blocked", false, nil},
-}
-
 /* Vmstat record */
-
-var allFieldsDefs []fieldDef = append(append(append(append(make([]fieldDef, 0, fieldsCount), procsFieldsDefs...), intrFieldDef), ctxtFieldDef), cpuFieldsDefs...)
 
 var VmstatHeader = makeHeader(allFieldsDefs)
 
