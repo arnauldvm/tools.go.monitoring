@@ -184,13 +184,14 @@ func addLineDef(prefix string, fieldsIdx ...uint) {
 var Header = makeHeader(allFieldsDefs)
 
 type Record struct {
-	isCumul bool
-	fields  []uint
+	isCumul, isRel bool
+	fields         []uint
 }
 
-func newRecord(isCumul bool) *Record {
+func newRecord(isCumul, isRel bool) *Record {
 	recordPtr := new(Record)
 	recordPtr.isCumul = isCumul
+	recordPtr.isRel = isRel
 	recordPtr.fields = make([]uint, fieldsCount)
 	return recordPtr
 }
@@ -204,7 +205,11 @@ func (record Record) WriteTo(w io.Writer) (n int64, err error) { // implements i
 	if record.isCumul {
 		err = writeTo(w, "a", &n)
 	} else {
-		err = writeTo(w, "d", &n)
+		if record.isRel {
+			err = writeTo(w, "p", &n)
+		} else {
+			err = writeTo(w, "d", &n)
+		}
 	}
 	if err != nil {
 		return
@@ -228,6 +233,12 @@ func (recordPtr *Record) diff(prevRecord, diffRecord *Record) {
 		} else {
 			diffRecord.fields[i] = field
 		}
+	}
+	return
+}
+func (diffRecordPtr *Record) rel() {
+	for _, i := range cpuIndices {
+		diffRecordPtr.fields[i] = diffRecordPtr.fields[i] * 100 / diffRecordPtr.fields[cpuTotalIdx]
 	}
 	return
 }
@@ -269,11 +280,11 @@ func (recordPtr *Record) parse() (err error) {
 
 // Poll sends a Record in the channel every period until duration.
 // If cumul is false, it prints the diff of the accumulators, instead of the accumulators themselves
-func Poll(period time.Duration, duration time.Duration, cumul bool, cout chan Record) {
+func Poll(period time.Duration, duration time.Duration, cumul bool, rel bool, cout chan Record) {
 	startTime := time.Now()
-	recordPtr := newRecord(true)
-	oldRecordPtr := newRecord(true)
-	diffRecordPtr := newRecord(false)
+	recordPtr := newRecord(true, false)
+	oldRecordPtr := newRecord(true, false)
+	diffRecordPtr := newRecord(false, rel)
 	for i := 0; (0 == duration) || (time.Since(startTime) <= duration); i++ {
 		if i > 0 {
 			time.Sleep(period)
@@ -290,6 +301,9 @@ func Poll(period time.Duration, duration time.Duration, cumul bool, cout chan Re
 				cout <- *recordPtr
 			} else {
 				recordPtr.diff(oldRecordPtr, diffRecordPtr)
+				if rel {
+					diffRecordPtr.rel()
+				}
 				cout <- *diffRecordPtr
 			}
 			oldRecordPtr, recordPtr = recordPtr, oldRecordPtr
