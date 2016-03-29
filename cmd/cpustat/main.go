@@ -5,7 +5,8 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"time"
+
+	"sic.smals.be/tools/monitoring/cpustat"
 )
 
 func printLine(wt io.WriterTo) {
@@ -37,7 +38,7 @@ func main() {
 	printLine(cpustat.Header)
 	for dat := range cout {
 		if *timePtr {
-			fmt.Print(time.Now().Format(RFC3339Millis), cpustat.Separator)
+			fmt.Print(dat.Time.Format(RFC3339Millis), cpustat.Separator)
 		}
 		printLine(dat)
 	}

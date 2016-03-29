@@ -184,6 +184,7 @@ func addLineDef(prefix string, fieldsIdx ...uint) {
 var Header = makeHeader(allFieldsDefs)
 
 type Record struct {
+	Time           time.Time
 	isCumul, isRel bool
 	fields         []uint
 }
@@ -227,6 +228,7 @@ func (record Record) WriteTo(w io.Writer) (n int64, err error) { // implements i
 	return
 }
 func (recordPtr *Record) diff(prevRecord, diffRecord *Record) {
+	diffRecord.Time = recordPtr.Time
 	for i, field := range recordPtr.fields {
 		if allFieldsDefs[i].isAccumulator {
 			diffRecord.fields[i] = field - prevRecord.fields[i]
@@ -249,6 +251,7 @@ func (recordPtr *Record) parse() (err error) {
 		return
 	}
 	defer inFile.Close()
+	recordPtr.Time = time.Now()
 	for i, _ := range recordPtr.fields {
 		recordPtr.fields[i] = 0
 	}
