@@ -288,10 +288,18 @@ func Poll(period time.Duration, duration time.Duration, cumul bool, rel bool, co
 	recordPtr := newRecord(true, false)
 	oldRecordPtr := newRecord(true, false)
 	diffRecordPtr := newRecord(false, rel)
+	var lastTime, nextTime time.Time
 	for i := 0; (0 == duration) || (time.Since(startTime) <= duration); i++ {
 		if i > 0 {
-			time.Sleep(period)
+			nextTime = lastTime.Add(period)
+			toWait := nextTime.Sub(time.Now())
+			if toWait > 0 {
+				time.Sleep(toWait)
+			}
+		} else {
+			nextTime = time.Now()
 		}
+		lastTime = nextTime
 		err := recordPtr.parse()
 		if err != nil {
 			log.Println(err)
