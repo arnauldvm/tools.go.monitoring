@@ -10,12 +10,6 @@ import (
 	"sic.smals.be/tools/monitoring/vmstat"
 )
 
-func check(e error) {
-	if e != nil {
-		panic(e) // TODO: really?
-	}
-}
-
 func printLine(wt io.WriterTo) {
 	wt.WriteTo(os.Stdout)
 	os.Stdout.Write([]byte{'\n'})
