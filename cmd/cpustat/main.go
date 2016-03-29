@@ -6,8 +6,6 @@ import (
 	"io"
 	"os"
 	"time"
-
-	"sic.smals.be/tools/monitoring/vmstat"
 )
 
 func printLine(wt io.WriterTo) {
@@ -31,15 +29,15 @@ func main() {
 		flag.PrintDefaults()
 		return
 	}
-	cout := make(chan vmstat.Record)
-	go vmstat.Poll(*periodPtr, *durationPtr, *cumulPtr, *relPtr, cout)
+	cout := make(chan cpustat.Record)
+	go cpustat.Poll(*periodPtr, *durationPtr, *cumulPtr, *relPtr, cout)
 	if *timePtr {
-		fmt.Print("time", vmstat.Separator)
+		fmt.Print("time", cpustat.Separator)
 	}
-	printLine(vmstat.Header)
+	printLine(cpustat.Header)
 	for dat := range cout {
 		if *timePtr {
-			fmt.Print(time.Now().Format(RFC3339Millis), vmstat.Separator)
+			fmt.Print(time.Now().Format(RFC3339Millis), cpustat.Separator)
 		}
 		printLine(dat)
 	}

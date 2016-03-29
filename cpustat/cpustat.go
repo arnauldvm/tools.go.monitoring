@@ -1,4 +1,4 @@
-package vmstat // import "sic.smals.be/tools/monitoring/vmstat"
+package cpustat // import "sic.smals.be/tools/monitoring/cpustat"
 
 import (
 	"bufio"
@@ -179,7 +179,7 @@ func addLineDef(prefix string, fieldsIdx ...uint) {
 	linesDefs[prefix] = lineDef{prefix, fieldsIdx}
 }
 
-/* Vmstat record */
+/* Record */
 
 var Header = makeHeader(allFieldsDefs)
 
