@@ -132,6 +132,9 @@ func parseLineToFields(def lineDef, line string, targetSlice []uint) (err error)
 	}
 	var uint64field uint64
 	for i, j := range def.fieldsIdx {
+		if i+1 >= len(fields) {
+			return // We have less fields, let's ignore remaining defs
+		}
 		uint64field, err = strconv.ParseUint(fields[i+1], 10, 0)
 		if err != nil {
 			return
