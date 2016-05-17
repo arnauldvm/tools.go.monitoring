@@ -28,7 +28,7 @@ const (
 	cpuUserIdx, firstCpuIdx     = iota, iota
 	cpuNiceIdx                  = iota
 	cpuSystemIdx                = iota
-	cpuidleIdx                  = iota
+	cpuIdleIdx                  = iota
 	cpuIowaitIdx                = iota
 	cpuIrqIdx                   = iota
 	cpuSoftIrqIdx               = iota
@@ -46,7 +46,7 @@ var cpuIndices = []uint{
 	cpuUserIdx,
 	cpuNiceIdx,
 	cpuSystemIdx,
-	cpuidleIdx,
+	cpuIdleIdx,
 	cpuIowaitIdx,
 	cpuIrqIdx,
 	cpuSoftIrqIdx,
