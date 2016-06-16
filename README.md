@@ -22,8 +22,16 @@ $ GOOS=linux GOARCH=amd64 go install
 
 ### Test
 
-= run on a host without proc fs
+#### a. run on a host without proc fs
 
 ```sh
 $ FS_ROOT=.samples go run cmd/cpustat/main.go (options)
 ```
+
+#### b. run on a virtual Linux host
+
+```sh
+$ docker run -it -v ~/go:/go ubuntu bash
+# /go/bin/linux_amd64/cpustat (options)
+```
+
