@@ -243,7 +243,9 @@ func (recordPtr *Record) diff(prevRecord, diffRecord *Record) {
 }
 func (diffRecordPtr *Record) rel() {
 	for _, i := range cpuIndices {
-		diffRecordPtr.fields[i] = diffRecordPtr.fields[i] * 100 / diffRecordPtr.fields[cpuTotalIdx]
+		if diffRecordPtr.fields[i] != 0 {
+			diffRecordPtr.fields[i] = diffRecordPtr.fields[i] * 100 / diffRecordPtr.fields[cpuTotalIdx]
+		}
 	}
 	return
 }
