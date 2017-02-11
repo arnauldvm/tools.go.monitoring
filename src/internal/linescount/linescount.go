@@ -31,9 +31,6 @@ func (h header) WriteTo(w io.Writer) (n int64, err error) { // implements io.Wri
 	return
 }
 
-// init
-var inputScanner = bufio.NewScanner(os.Stdin)
-
 func writeTo(w io.Writer, v interface{}, p *int64) (err error) {
 	m, err := w.Write([]byte(fmt.Sprint(v)))
 	*p += int64(m)
@@ -52,6 +49,7 @@ type Record struct {
 
 func newRecord(isCumul bool) *Record {
 	recordPtr := new(Record)
+	recordPtr.count = 0
 	recordPtr.isCumul = isCumul
 	return recordPtr
 }
@@ -80,31 +78,50 @@ func (record Record) WriteTo(w io.Writer) (n int64, err error) { // implements i
 	}
 	return
 }
-func (recordPtr *Record) diff(prevRecord, diffRecord *Record) {
+
+func (recordPtr *Record) diff(prevCount uint, diffRecord *Record) {
 	diffRecord.Time = recordPtr.Time
-	diffRecord.count = recordPtr.count - prevRecord.count
+	diffRecord.count = recordPtr.count - prevCount
 	return
 }
 
-func (recordPtr *Record) countlines(substring string, invert bool) (err error) {
+// Non-blocking read from Stdin inspired by http://stackoverflow.com/a/27210020
+func (recordPtr *Record) countlines(cout chan string, substring string, invert bool) (ok bool) {
     var line string
-    for inputScanner.Scan() {
-        line = inputScanner.Text()
-        err := inputScanner.Err()
-        if (err!=nil) && (err!=io.EOF) {
-            return err
+    loop: for {
+        //log.Println("Waiting for 1 line")
+        select {
+            case line, ok = <-cout:
+                if !ok {
+                    // Reached error or EOF
+                    return
+                }
+                //log.Println("Read 1 line")
+                //log.Println(line)
+                if (substring=="") || (strings.Contains(line, substring)!=invert) {
+                    recordPtr.count++
+                }
+            case <-time.After(1 * time.Second): // Change this delay?
+                break loop
         }
-        if (substring=="") || (strings.Contains(line, substring)!=invert) {
-            recordPtr.count++
-        }
-        if (err==io.EOF) {
-            break
-        }
-
     }
 	recordPtr.Time = time.Now()
-	err = nil
+	ok = true
 	return
+}
+
+// Non-blocking read from Stdin inspired by http://stackoverflow.com/a/27210020
+func ReadStdin(cout chan string) {
+    var inputReader = bufio.NewReader(os.Stdin)
+    for {
+        line, err := inputReader.ReadString('\n')
+        if err != nil {
+            if err!= io.EOF { log.Println(err) }
+            close(cout)
+            return
+        }
+        cout <- line
+    }
 }
 
 /* Polling */
@@ -114,8 +131,10 @@ func (recordPtr *Record) countlines(substring string, invert bool) (err error) {
 func Poll(substring string, invert bool, period time.Duration, duration time.Duration, cumul bool, cout chan Record) {
 	startTime := time.Now()
 	recordPtr := newRecord(true)
-	oldRecordPtr := newRecord(true)
+	var oldCount uint
 	diffRecordPtr := newRecord(false)
+	chstdin := make(chan string)
+	go ReadStdin(chstdin)
 	var lastTime, nextTime time.Time
 	for i := 0; (0 == duration) || (time.Since(startTime) <= duration); i++ {
 		if i > 0 {
@@ -128,21 +147,25 @@ func Poll(substring string, invert bool, period time.Duration, duration time.Dur
 			nextTime = time.Now()
 		}
 		lastTime = nextTime
-		err := recordPtr.countlines(substring, invert)
-		if err != nil {
-			log.Println(err)
-			continue
+		//log.Println("Counting lines")
+		ok := recordPtr.countlines(chstdin, substring, invert)
+		if !ok {
+		    log.Println("Stdin terminated")
 		}
+		//log.Println("Counted lines")
 		if cumul {
 			cout <- *recordPtr
 		} else {
 			if i < 1 {
 				cout <- *recordPtr
 			} else {
-				recordPtr.diff(oldRecordPtr, diffRecordPtr)
+				recordPtr.diff(oldCount, diffRecordPtr)
 				cout <- *diffRecordPtr
 			}
-			oldRecordPtr, recordPtr = recordPtr, oldRecordPtr
+			oldCount = recordPtr.count
+		}
+		if !ok {
+		    break
 		}
 	}
 	close(cout)
