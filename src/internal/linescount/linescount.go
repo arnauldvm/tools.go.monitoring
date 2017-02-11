@@ -32,7 +32,7 @@ func (h header) WriteTo(w io.Writer) (n int64, err error) { // implements io.Wri
 }
 
 // init
-var inputReader = bufio.NewReader(os.Stdin)
+var inputScanner = bufio.NewScanner(os.Stdin)
 
 func writeTo(w io.Writer, v interface{}, p *int64) (err error) {
 	m, err := w.Write([]byte(fmt.Sprint(v)))
@@ -88,10 +88,11 @@ func (recordPtr *Record) diff(prevRecord, diffRecord *Record) {
 
 func (recordPtr *Record) countlines(substring string, invert bool) (err error) {
     var line string
-    for {
-        line, err = inputReader.ReadString('\n')
+    for inputScanner.Scan() {
+        line = inputScanner.Text()
+        err := inputScanner.Err()
         if (err!=nil) && (err!=io.EOF) {
-            return
+            return err
         }
         if (substring=="") || (strings.Contains(line, substring)!=invert) {
             recordPtr.count++
