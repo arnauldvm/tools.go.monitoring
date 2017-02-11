@@ -1,4 +1,4 @@
-package netstat // import "sic.smals.be/tools/monitoring/netstat"
+package netstat
 
 import (
 	"bufio"

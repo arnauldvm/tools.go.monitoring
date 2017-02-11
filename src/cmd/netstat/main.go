@@ -6,7 +6,7 @@ import (
 	"io"
 	"os"
 
-	"sic.smals.be/tools/monitoring/netstat"
+	"internal/netstat"
 )
 
 func printLine(wt io.WriterTo) {

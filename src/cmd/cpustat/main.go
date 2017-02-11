@@ -6,7 +6,7 @@ import (
 	"io"
 	"os"
 
-	"sic.smals.be/tools/monitoring/cpustat"
+	"internal/cpustat"
 )
 
 func printLine(wt io.WriterTo) {

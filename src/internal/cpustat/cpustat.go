@@ -1,4 +1,4 @@
-package cpustat // import "sic.smals.be/tools/monitoring/cpustat"
+package cpustat
 
 import (
 	"bufio"
