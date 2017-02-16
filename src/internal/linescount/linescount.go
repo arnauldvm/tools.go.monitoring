@@ -20,9 +20,10 @@ const (
 type header []string
 
 func makeHeader() header {
-	h := header(make([]string, 2))
+	h := header(make([]string, 3))
 	h[0] = "h"
 	h[1] = "count"
+	h[2] = "bytes"
 	return h
 }
 
@@ -45,11 +46,13 @@ type Record struct {
 	Time           time.Time
 	isCumul        bool
 	count          uint
+	bytes          uint
 }
 
 func newRecord(isCumul bool) *Record {
 	recordPtr := new(Record)
 	recordPtr.count = 0
+	recordPtr.bytes = 0
 	recordPtr.isCumul = isCumul
 	return recordPtr
 }
@@ -76,12 +79,21 @@ func (record Record) WriteTo(w io.Writer) (n int64, err error) { // implements i
 	if err != nil {
 		return
 	}
+	err = writeTo(w, Separator, &n)
+	if err != nil {
+		return
+	}
+	err = writeTo(w, record.bytes, &n)
+	if err != nil {
+		return
+	}
 	return
 }
 
-func (recordPtr *Record) diff(prevCount uint, diffRecord *Record) {
+func (recordPtr *Record) diff(prevCount uint, prevBytes uint, diffRecord *Record) {
 	diffRecord.Time = recordPtr.Time
 	diffRecord.count = recordPtr.count - prevCount
+	diffRecord.bytes = recordPtr.bytes - prevBytes
 	return
 }
 
@@ -100,6 +112,7 @@ func (recordPtr *Record) countlines(cout chan string, substring string, invert b
                 //log.Println(line)
                 if (substring=="") || (strings.Contains(line, substring)!=invert) {
                     recordPtr.count++
+		    recordPtr.bytes += uint(len(line))
                 }
             case <-time.After(1 * time.Second): // Change this delay?
                 break loop
@@ -131,7 +144,7 @@ func ReadStdin(cout chan string) {
 func Poll(substring string, invert bool, period time.Duration, duration time.Duration, cumul bool, cout chan Record) {
 	startTime := time.Now()
 	recordPtr := newRecord(true)
-	var oldCount uint
+	var oldCount, oldBytes uint
 	diffRecordPtr := newRecord(false)
 	chstdin := make(chan string)
 	go ReadStdin(chstdin)
@@ -159,10 +172,11 @@ func Poll(substring string, invert bool, period time.Duration, duration time.Dur
 			if i < 1 {
 				cout <- *recordPtr
 			} else {
-				recordPtr.diff(oldCount, diffRecordPtr)
+				recordPtr.diff(oldCount, oldBytes, diffRecordPtr)
 				cout <- *diffRecordPtr
 			}
 			oldCount = recordPtr.count
+			oldBytes = recordPtr.bytes
 		}
 		if !ok {
 		    break
