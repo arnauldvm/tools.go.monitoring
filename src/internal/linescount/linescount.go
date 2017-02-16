@@ -45,8 +45,8 @@ var Header = makeHeader()
 type Record struct {
 	Time           time.Time
 	isCumul        bool
-	count          uint
-	bytes          uint
+	count          uint64
+	bytes          uint64
 }
 
 func newRecord(isCumul bool) *Record {
@@ -90,7 +90,7 @@ func (record Record) WriteTo(w io.Writer) (n int64, err error) { // implements i
 	return
 }
 
-func (recordPtr *Record) diff(prevCount uint, prevBytes uint, diffRecord *Record) {
+func (recordPtr *Record) diff(prevCount uint64, prevBytes uint64, diffRecord *Record) {
 	diffRecord.Time = recordPtr.Time
 	diffRecord.count = recordPtr.count - prevCount
 	diffRecord.bytes = recordPtr.bytes - prevBytes
@@ -112,7 +112,7 @@ func (recordPtr *Record) countlines(cout chan []byte, substring string, invert b
                 //log.Println(line)
                 if (substring=="") || (strings.Contains(string(bytes), substring)!=invert) {
                     recordPtr.count++
-		    recordPtr.bytes += uint(len(bytes))
+		    recordPtr.bytes += uint64(len(bytes))
                 }
             case <-time.After(1 * time.Second): // Change this delay?
                 break loop
@@ -144,7 +144,7 @@ func ReadStdin(cout chan []byte) {
 func Poll(substring string, invert bool, period time.Duration, duration time.Duration, cumul bool, cout chan Record) {
 	startTime := time.Now()
 	recordPtr := newRecord(true)
-	var oldCount, oldBytes uint
+	var oldCount, oldBytes uint64
 	diffRecordPtr := newRecord(false)
 	chstdin := make(chan []byte)
 	go ReadStdin(chstdin)
