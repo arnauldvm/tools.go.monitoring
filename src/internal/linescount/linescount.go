@@ -98,21 +98,21 @@ func (recordPtr *Record) diff(prevCount uint, prevBytes uint, diffRecord *Record
 }
 
 // Non-blocking read from Stdin inspired by http://stackoverflow.com/a/27210020
-func (recordPtr *Record) countlines(cout chan string, substring string, invert bool) (ok bool) {
-    var line string
+func (recordPtr *Record) countlines(cout chan []byte, substring string, invert bool) (ok bool) {
+    var bytes []byte
     loop: for {
         //log.Println("Waiting for 1 line")
         select {
-            case line, ok = <-cout:
+            case bytes, ok = <-cout:
                 if !ok {
                     // Reached error or EOF
                     return
                 }
                 //log.Println("Read 1 line")
                 //log.Println(line)
-                if (substring=="") || (strings.Contains(line, substring)!=invert) {
+                if (substring=="") || (strings.Contains(string(bytes), substring)!=invert) {
                     recordPtr.count++
-		    recordPtr.bytes += uint(len(line))
+		    recordPtr.bytes += uint(len(bytes))
                 }
             case <-time.After(1 * time.Second): // Change this delay?
                 break loop
@@ -124,16 +124,16 @@ func (recordPtr *Record) countlines(cout chan string, substring string, invert b
 }
 
 // Non-blocking read from Stdin inspired by http://stackoverflow.com/a/27210020
-func ReadStdin(cout chan string) {
+func ReadStdin(cout chan []byte) {
     var inputReader = bufio.NewReader(os.Stdin)
     for {
-        line, err := inputReader.ReadString('\n')
+	bytes, err := inputReader.ReadBytes('\n')
         if err != nil {
             if err!= io.EOF { log.Println(err) }
             close(cout)
             return
         }
-        cout <- line
+        cout <- bytes
     }
 }
 
@@ -146,7 +146,7 @@ func Poll(substring string, invert bool, period time.Duration, duration time.Dur
 	recordPtr := newRecord(true)
 	var oldCount, oldBytes uint
 	diffRecordPtr := newRecord(false)
-	chstdin := make(chan string)
+	chstdin := make(chan []byte)
 	go ReadStdin(chstdin)
 	var lastTime, nextTime time.Time
 	for i := 0; (0 == duration) || (time.Since(startTime) <= duration); i++ {
