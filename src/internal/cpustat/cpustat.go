@@ -56,8 +56,9 @@ var cpuIndices = []uint{
 	cpuIrqIdx,
 	cpuSoftIrqIdx,
 	cpuStealIdx,
-	cpuGuestIdx,
-	cpuGuestNiceIdx,
+	cpuGuestIdx, // TODO: should this be removed from the total (already part of User time)?
+	cpuGuestNiceIdx, // TODO: should this be removed from the total (already part of Nice time)?
+	  // see also: http://lxr.free-electrons.com/source/kernel/sched/cputime.c?v=4.10#L163
 }
 
 var allFieldsDefs = []fieldDef{
