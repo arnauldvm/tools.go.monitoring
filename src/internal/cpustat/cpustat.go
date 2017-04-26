@@ -11,6 +11,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"system/getconf"
 )
 
 const (
@@ -24,6 +26,9 @@ const (
 	procsBlockedIdx             = iota
 	intrTotalIdx                = iota
 	ctxtTotalIdx                = iota
+	//confClkTck                  = iota
+	//confNProcs                  = iota
+	tckTotalIdx                 = iota
 	cpuTotalIdx                 = iota
 	cpuUserIdx, firstCpuIdx     = iota, iota
 	cpuNiceIdx                  = iota
@@ -61,6 +66,9 @@ var allFieldsDefs = []fieldDef{
 	fieldDef{"procs", "blocked", false, nil},
 	fieldDef{"intr", "total", true, nil},
 	fieldDef{"ctxt", "total", true, nil},
+	//fieldDef{"conf", "clktck", false, clkTckCalculator},
+	//fieldDef{"conf", "nprocs", false, nprocsCalculator},
+	fieldDef{"cpu", "max", false, maxCpuCalculator},
 	fieldDef{"cpu", "total", true, totalCpuCalculator},
 	fieldDef{"cpu", "user", true, nil},
 	fieldDef{"cpu", "nice", true, nil},
@@ -72,6 +80,21 @@ var allFieldsDefs = []fieldDef{
 	fieldDef{"cpu", "steal", true, nil},
 	fieldDef{"cpu", "guest", true, nil},
 	fieldDef{"cpu", "guest_nice", true, nil},
+}
+
+func clkTckCalculator(fields []uint) (field uint) {
+	field = clkTck
+	return
+}
+
+func nprocsCalculator(fields []uint) (field uint) {
+	field = nprocs
+	return
+}
+
+func maxCpuCalculator(fields []uint) (total uint) {
+	total = clkTck * nprocs
+	return
 }
 
 func totalCpuCalculator(fields []uint) (total uint) {
@@ -109,6 +132,8 @@ func (h header) WriteTo(w io.Writer) (n int64, err error) { // implements io.Wri
 }
 
 var procStat string = defaultProcStat
+var clkTck uint = 100
+var nprocs uint = 1
 
 func warn(v ...interface{}) {
 	log.Print("WARNING: ", fmt.Sprint(v...))
@@ -122,6 +147,18 @@ func init() {
 	fsRoot := os.Getenv("FS_ROOT")
 	if fsRoot != "" {
 		procStat = path.Join(fsRoot, defaultProcStat)
+	}
+	res, err := getconf.GetClkTck()
+	if err != nil {
+		warnf("Error getting CLK_TCK from system conf, using default value (%d): %s", clkTck, err)
+	} else {
+		clkTck = res
+	}
+	res, err = getconf.GetNProcsAvailable()
+	if err != nil {
+		warnf("Error getting _NPROCESSORS_ONLN from system conf, using default value (%d): %s", nprocs, err)
+	} else {
+		nprocs = res
 	}
 }
 
