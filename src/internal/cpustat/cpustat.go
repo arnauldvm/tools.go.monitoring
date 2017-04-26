@@ -110,6 +110,14 @@ func (h header) WriteTo(w io.Writer) (n int64, err error) { // implements io.Wri
 
 var procStat string = defaultProcStat
 
+func warn(v ...interface{}) {
+	log.Print("WARNING: ", fmt.Sprint(v...))
+}
+
+func warnf(format string, v ...interface{}) {
+	log.Printf("WARNING: " + format, v...)
+}
+
 func init() {
 	fsRoot := os.Getenv("FS_ROOT")
 	if fsRoot != "" {
@@ -307,7 +315,7 @@ func Poll(period time.Duration, duration time.Duration, cumul bool, rel bool, co
 		lastTime = nextTime
 		err := recordPtr.parse()
 		if err != nil {
-			log.Println(err)
+			warn("Error parsing record, ignoring: ", err)
 			continue
 		}
 		if cumul {
