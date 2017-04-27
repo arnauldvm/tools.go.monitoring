@@ -28,7 +28,7 @@ const (
 	ctxtTotalIdx                = iota
 	//confClkTck                  = iota
 	//confNProcs                  = iota
-	tckTotalIdx                 = iota
+	cpuMaxIdx                   = iota
 	cpuTotalIdx                 = iota
 	cpuUserIdx, firstCpuIdx     = iota, iota
 	cpuNiceIdx                  = iota
