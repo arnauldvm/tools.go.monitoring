@@ -39,7 +39,9 @@ const (
 	cpuSoftIrqIdx               = iota
 	cpuStealIdx                 = iota
 	cpuGuestIdx                 = iota
-	cpuGuestNiceIdx, lastCpuIdx = iota, iota
+	cpuGuestNiceIdx             = iota
+        cpuHypIdx                   = iota
+        cpuHypNiceIdx, lastCpuIdx   = iota, iota
 	fieldsCount                 = iota
 )
 
@@ -71,6 +73,8 @@ var cpuIndices = []uint{
 	cpuStealIdx,
 	cpuGuestIdx,
 	cpuGuestNiceIdx,
+	cpuHypIdx,
+	cpuHypNiceIdx,
 }
 
 var allFieldsDefs = []fieldDef{
@@ -93,6 +97,8 @@ var allFieldsDefs = []fieldDef{
 	fieldDef{"cpu", "steal", true, nil},
 	fieldDef{"cpu", "guest", true, nil},
 	fieldDef{"cpu", "guest_nice", true, nil},
+	fieldDef{"cpu", "hyp", true, hypCpuCalculator},
+	fieldDef{"cpu", "hyp_nice", true, hypNiceCpuCalculator},
 }
 
 func clkTckCalculator(fields []uint) (uint) {
@@ -112,6 +118,14 @@ func totalCpuCalculator(fields []uint) (total uint) {
 		total += fields[i]
 	}
 	return
+}
+
+func hypCpuCalculator(fields []uint) (uint) {
+	return fields[cpuUserIdx] - fields[cpuGuestIdx]
+}
+
+func hypNiceCpuCalculator(fields []uint) (uint) {
+	return fields[cpuNiceIdx] - fields[cpuGuestNiceIdx]
 }
 
 func init() {
