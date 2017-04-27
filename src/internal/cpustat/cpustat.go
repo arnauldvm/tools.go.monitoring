@@ -47,6 +47,19 @@ const (
    (1/100ths of a second on most architectures, use
    sysconf(_SC_CLK_TCK) to obtain the right value), that
    the system spent in various states >> */
+var cpuIndicesForTotal = []uint{
+	cpuUserIdx,
+	cpuNiceIdx,
+	cpuSystemIdx,
+	cpuIdleIdx,
+	cpuIowaitIdx,
+	cpuIrqIdx,
+	cpuSoftIrqIdx,
+	cpuStealIdx,
+	//cpuGuestIdx, // already part of User time
+	//cpuGuestNiceIdx, // already part of Nice time
+	// see also: http://lxr.free-electrons.com/source/kernel/sched/cputime.c?v=4.10#L163
+}
 var cpuIndices = []uint{
 	cpuUserIdx,
 	cpuNiceIdx,
@@ -56,9 +69,8 @@ var cpuIndices = []uint{
 	cpuIrqIdx,
 	cpuSoftIrqIdx,
 	cpuStealIdx,
-	cpuGuestIdx, // TODO: should this be removed from the total (already part of User time)?
-	cpuGuestNiceIdx, // TODO: should this be removed from the total (already part of Nice time)?
-	  // see also: http://lxr.free-electrons.com/source/kernel/sched/cputime.c?v=4.10#L163
+	cpuGuestIdx,
+	cpuGuestNiceIdx,
 }
 
 var allFieldsDefs = []fieldDef{
@@ -99,7 +111,7 @@ func maxCpuCalculator(fields []uint) (total uint) {
 }
 
 func totalCpuCalculator(fields []uint) (total uint) {
-	for _, i := range cpuIndices {
+	for _, i := range cpuIndicesForTotal {
 		total += fields[i]
 	}
 	return
