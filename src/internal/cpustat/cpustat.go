@@ -95,19 +95,16 @@ var allFieldsDefs = []fieldDef{
 	fieldDef{"cpu", "guest_nice", true, nil},
 }
 
-func clkTckCalculator(fields []uint) (field uint) {
-	field = clkTck
-	return
+func clkTckCalculator(fields []uint) (uint) {
+	return clkTck
 }
 
-func nprocsCalculator(fields []uint) (field uint) {
-	field = nprocs
-	return
+func nprocsCalculator(fields []uint) (uint) {
+	return nprocs
 }
 
-func maxCpuCalculator(fields []uint) (total uint) {
-	total = clkTck * nprocs
-	return
+func maxCpuCalculator(fields []uint) (uint) {
+	return clkTck * nprocs
 }
 
 func totalCpuCalculator(fields []uint) (total uint) {
